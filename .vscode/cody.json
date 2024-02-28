@@ -1,0 +1,11 @@
+{
+  "commands": {
+    "comment_code": {
+      "prompt": "Write proper cooments to the code",
+      "context": {
+        "codebase": true,
+        "selection": true
+      }
+    }
+  }
+}
