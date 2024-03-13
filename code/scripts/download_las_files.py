@@ -197,7 +197,7 @@ Generates a JSON error report in reports/error_report.json with any errors.
             field_name = field_folder.name
             
             # Make field folder in destination
-            field_name = field_folder.name.replace('-', ' ').title().replace(' ', '')
+            #field_name = field_folder.name.replace('-', ' ').title().replace(' ', '')
             field_destination = destination_path / field_name
             field_destination.mkdir(exist_ok=True)
 
