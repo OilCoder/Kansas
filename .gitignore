@@ -1,3 +1,4 @@
 # Ignore everything in the data directory
 data/
 images/
+.vscode/
