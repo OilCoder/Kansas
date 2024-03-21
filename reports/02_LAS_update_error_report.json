@@ -1,80 +1,227 @@
 {
-    "Cutter": [
+    "Arroyo": [
         {
-            "file": "1044174999",
-            "error": "'No ~ sections found. Is this a LAS file?'",
+            "file": "1006347013",
+            "error": "list index out of range",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1044891383",
-            "error": "'No ~ sections found. Is this a LAS file?'",
+            "file": "1051789049",
+            "error": "single positional indexer is out-of-bounds",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1044891384",
-            "error": "\"WRAP not in ['6180:1', '6180:2']\"",
+            "file": "1006347024",
+            "error": "list index out of range",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1044175000",
-            "error": "'No ~ sections found. Is this a LAS file?'",
+            "file": "1006347031",
+            "error": "Cannot cast array data from dtype('<U32') to dtype('float64') according to the rule 'safe'",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1044176975",
-            "error": "'No ~ sections found. Is this a LAS file?'",
+            "file": "1051789037",
+            "error": "single positional indexer is out-of-bounds",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1044913718",
-            "error": "Cannot reshape ~A data size (66114,) into 5 columns",
+            "file": "1006346996",
+            "error": "Cannot reshape ~A data size (30136,) into 7 columns",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1044891385",
-            "error": "'No ~ sections found. Is this a LAS file?'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044891388",
-            "error": "'No ~ sections found. Is this a LAS file?'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044913551",
-            "error": "Cannot reshape ~A data size (2206,) into 7 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044891387",
-            "error": "'No ~ sections found. Is this a LAS file?'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044913796",
-            "error": "Cannot reshape ~A data size (25313,) into 6 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044913792",
-            "error": "Unable to allocate 23.6 GiB for an array with shape (45938,) and data type <U138094",
+            "file": "1006347002",
+            "error": "list index out of range",
             "message": "Error during the processing of the LAS file."
         }
     ],
-    "East Fork": [
+    "Burrton": [
         {
-            "file": "1052604121",
+            "file": "1044203992",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        }
+    ],
+    "Hall-Gurney": [
+        {
+            "file": "1020420952",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1020420954",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1020420950",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1020420939",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1028405758",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT / COLLIVER, CARRIE _16.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1046437758",
             "error": "\"DATE not in ['STRT', 'STOP', 'STEP', 'NULL', 'COMP', 'WELL', 'FLD', 'LOC', 'CNTY', 'DATE:1', 'STAT', 'SECT', 'TOWN', 'RANG', 'APINO', 'PDAT', 'LMF', 'DMF', 'EBK', 'EDF', 'EGL', 'DATE:2', 'TDD1', 'TDL1', 'BLI1', 'TLI1', 'BHS1', 'DFT1', 'SPPM', 'DFDV1', 'VIS', 'PH', 'FLOSS', 'RM', 'RMF', 'RMC', 'MTEMP', 'RMBHT', 'OPERIGT', 'EQIP#', 'RECBY', 'WITBY', 'CTRY', 'PROV', 'UWI', 'API', 'SRVC', 'DATE:3']\"",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1046517572",
-            "error": "\"DATE not in ['STRT', 'STOP', 'STEP', 'NULL', 'COMP', 'WELL', 'FLD', 'LOC', 'CNTY', 'DATE:1', 'STAT', 'SECT', 'TOWN', 'RANG', 'APINO', 'PDAT', 'LMF', 'DMF', 'EBK', 'EDF', 'EGL', 'DATE:2', 'TDD1', 'TDL1', 'BLI1', 'TLI1', 'BHS1', 'DFT1', 'SPPM', 'DFDV1', 'VIS', 'PH', 'FLOSS', 'RM', 'RMF', 'RMC', 'MTEMP', 'RMBHT', 'OPERIGT', 'EQIP#', 'RECBY', 'WITBY', 'CTRY', 'PROV', 'UWI', 'API', 'SRVC', 'DATE:3']\"",
+            "file": "1020420938",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1046467306",
+            "file": "1020420936",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1020420935",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1028405760",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT / COLLIVER, CARRIE _13.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1020420945",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1020420941",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1020420937",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1020420944",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1020420942",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1020420948",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1020420953",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1020420949",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1020420947",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1028405759",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT / COLLIVER, CARRIE _12.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1020420951",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1020420943",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1020420940",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1020420946",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044930992",
             "error": "list index out of range",
+            "message": "Error during the processing of the LAS file."
+        }
+    ],
+    "Marcotte": [
+        {
+            "file": "1044818924",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/Marcotte/Gunn/Gibson_3.las'",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044571461",
+            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/Marcotte/Gunn/Gibson_2.las'",
+            "message": "Error during the processing of the LAS file."
+        }
+    ],
+    "Morel": [
+        {
+            "file": "1043562774",
+            "error": "list index out of range",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1043562772",
+            "error": "list index out of range",
+            "message": "Error during the processing of the LAS file."
+        }
+    ],
+    "Scoda": [
+        {
+            "file": "1046473046",
+            "error": "\"DATE not in ['STRT', 'STOP', 'STEP', 'NULL', 'COMP', 'WELL', 'FLD', 'LOC', 'CNTY', 'DATE:1', 'STAT', 'SECT', 'TOWN', 'RANG', 'APINO', 'PDAT', 'LMF', 'DMF', 'EBK', 'EDF', 'EGL', 'DATE:2', 'TDD1', 'TDL1', 'BLI1', 'TLI1', 'BHS1', 'DFT1', 'SPPM', 'DFDV1', 'VIS', 'PH', 'FLOSS', 'RM', 'RMF', 'RMC', 'MTEMP', 'RMBHT', 'OPERIGT', 'EQIP#', 'RECBY', 'WITBY', 'CTRY', 'PROV', 'UWI', 'API', 'SRVC', 'DATE:3']\"",
+            "message": "Error during the processing of the LAS file."
+        }
+    ],
+    "Shuck": [
+        {
+            "file": "1043453671",
+            "error": "Cannot reshape ~A data size (13851,) into 4 columns",
+            "message": "Error during the processing of the LAS file."
+        }
+    ],
+    "Zenith-Peace Creek": [
+        {
+            "file": "1021084902",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1021084914",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1021084911",
+            "error": "single positional indexer is out-of-bounds",
             "message": "Error during the processing of the LAS file."
         }
     ]

@@ -65,8 +65,8 @@ def update_las(las_file_path, well_data, log_data, top_data, LAS_data, destinati
     error_log = []
     try:
         # Ignore specific warnings and read LAS file
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter('always')
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', UserWarning)
 
         # Find KID for LAS file in LAS_data
         kid = find_kid_for_las(os.path.basename(las_file_path), LAS_data)
