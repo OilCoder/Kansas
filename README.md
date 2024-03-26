@@ -40,6 +40,7 @@ After setting up the Conda environment and RAPIDS, install the following Python 
 - pandas
 - numpy
 - matplotlib
+- ipywidgets
 
 You can install these packages using pip or conda, depending on your environment setup.
 

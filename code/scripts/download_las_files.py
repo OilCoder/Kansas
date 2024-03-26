@@ -5,6 +5,7 @@ import sys
 import urllib.request
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 def get_field_las_ids(field_folder):
@@ -217,7 +218,7 @@ Generates a JSON error report in reports/error_report.json with any errors.
             files_downloaded = 0
             
             # Use threadpool to download files asynchronously 
-            with ThreadPoolExecutor(max_workers=25) as executor:
+            with ProcessPoolExecutor(max_workers=25) as executor:
                 futures = {executor.submit(download_file, las_id, url, field_destination): las_id for las_id, url in las_url_map.items()}
                 
                 # Process results as downloads complete

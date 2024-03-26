@@ -1,18 +1,18 @@
 {
     "Arroyo": [
         {
-            "file": "1006347013",
-            "error": "list index out of range",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
             "file": "1051789049",
             "error": "single positional indexer is out-of-bounds",
             "message": "Error during the processing of the LAS file."
         },
         {
+            "file": "1006347019",
+            "error": "Unable to allocate 169. GiB for an array with shape (120847,) and data type <U375377",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
             "file": "1006347024",
-            "error": "list index out of range",
+            "error": "Cannot reshape ~A data size (69155,) into 21 columns",
             "message": "Error during the processing of the LAS file."
         },
         {
@@ -26,13 +26,62 @@
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1006346996",
-            "error": "Cannot reshape ~A data size (30136,) into 7 columns",
+            "file": "1006346997",
+            "error": "Cannot reshape ~A data size (44839,) into 7 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1006347004",
+            "error": "Cannot reshape ~A data size (35549,) into 18 columns",
             "message": "Error during the processing of the LAS file."
         },
         {
             "file": "1006347002",
-            "error": "list index out of range",
+            "error": "Cannot reshape ~A data size (54074,) into 18 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1006347020",
+            "error": "Unable to allocate 169. GiB for an array with shape (120847,) and data type <U375377",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1006347023",
+            "error": "Cannot reshape ~A data size (69155,) into 21 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1006347013",
+            "error": "Cannot reshape ~A data size (15698,) into 17 columns",
+            "message": "Error during the processing of the LAS file."
+        }
+    ],
+    "Bemis-Shutts": [
+        {
+            "file": "1043914397",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1043853068",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1046502101",
+            "error": "\"DATE not in ['STRT', 'STOP', 'STEP', 'NULL', 'COMP', 'WELL', 'FLD', 'LOC', 'CNTY', 'DATE:1', 'STAT', 'SECT', 'TOWN', 'RANG', 'APINO', 'PDAT', 'LMF', 'DMF', 'EBK', 'EDF', 'EGL', 'DATE:2', 'TDD1', 'TDL1', 'BLI1', 'TLI1', 'BHS1', 'DFT1', 'SPPM', 'DFDV1', 'VIS', 'PH', 'FLOSS', 'RM', 'RMF', 'RMC', 'MTEMP', 'RMBHT', 'OPERIGT', 'EQIP#', 'RECBY', 'WITBY', 'CTRY', 'PROV', 'UWI', 'API', 'SRVC', 'DATE:3']\"",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044235770",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        }
+    ],
+    "Bradshaw Gas Area": [
+        {
+            "file": "1028091627",
+            "error": "single positional indexer is out-of-bounds",
             "message": "Error during the processing of the LAS file."
         }
     ],
@@ -43,30 +92,131 @@
             "message": "Error during the processing of the LAS file."
         }
     ],
+    "Cutter": [
+        {
+            "file": "1044913778",
+            "error": "Cannot reshape ~A data size (2888,) into 3 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044891386",
+            "error": "Cannot reshape ~A data size (56369,) into 25 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044913569",
+            "error": "list index out of range",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044891389",
+            "error": "Unable to allocate 780. GiB for an array with shape (272361,) and data type <U768776",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044891359",
+            "error": "Unable to allocate 780. GiB for an array with shape (272361,) and data type <U768776",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044176974",
+            "error": "Unable to allocate 780. GiB for an array with shape (272361,) and data type <U768776",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044174999",
+            "error": "Unable to allocate 780. GiB for an array with shape (272361,) and data type <U768776",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044891391",
+            "error": "Unable to allocate 780. GiB for an array with shape (272361,) and data type <U768776",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044891390",
+            "error": "Unable to allocate 780. GiB for an array with shape (272361,) and data type <U768776",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044913800",
+            "error": "Cannot reshape ~A data size (16902,) into 7 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044175000",
+            "error": "Unable to allocate 780. GiB for an array with shape (272361,) and data type <U768776",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044891384",
+            "error": "Unable to allocate 780. GiB for an array with shape (272361,) and data type <U768776",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044913551",
+            "error": "Cannot reshape ~A data size (5129,) into 6 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044891383",
+            "error": "Unable to allocate 780. GiB for an array with shape (272361,) and data type <U768776",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044913556",
+            "error": "Cannot reshape ~A data size (15400,) into 6 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044913793",
+            "error": "Cannot reshape ~A data size (50709,) into 6 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044891385",
+            "error": "Unable to allocate 780. GiB for an array with shape (272361,) and data type <U768776",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044176975",
+            "error": "Unable to allocate 780. GiB for an array with shape (272361,) and data type <U768776",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044891388",
+            "error": "Unable to allocate 780. GiB for an array with shape (272361,) and data type <U768776",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044891387",
+            "error": "Unable to allocate 780. GiB for an array with shape (272361,) and data type <U768776",
+            "message": "Error during the processing of the LAS file."
+        }
+    ],
+    "East Fork": [
+        {
+            "file": "1052604121",
+            "error": "\"DATE not in ['STRT', 'STOP', 'STEP', 'NULL', 'COMP', 'WELL', 'FLD', 'LOC', 'CNTY', 'DATE:1', 'STAT', 'SECT', 'TOWN', 'RANG', 'APINO', 'PDAT', 'LMF', 'DMF', 'EBK', 'EDF', 'EGL', 'DATE:2', 'TDD1', 'TDL1', 'BLI1', 'TLI1', 'BHS1', 'DFT1', 'SPPM', 'DFDV1', 'VIS', 'PH', 'FLOSS', 'RM', 'RMF', 'RMC', 'MTEMP', 'RMBHT', 'OPERIGT', 'EQIP#', 'RECBY', 'WITBY', 'CTRY', 'PROV', 'UWI', 'API', 'SRVC', 'DATE:3']\"",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1046517572",
+            "error": "\"DATE not in ['STRT', 'STOP', 'STEP', 'NULL', 'COMP', 'WELL', 'FLD', 'LOC', 'CNTY', 'DATE:1', 'STAT', 'SECT', 'TOWN', 'RANG', 'APINO', 'PDAT', 'LMF', 'DMF', 'EBK', 'EDF', 'EGL', 'DATE:2', 'TDD1', 'TDL1', 'BLI1', 'TLI1', 'BHS1', 'DFT1', 'SPPM', 'DFDV1', 'VIS', 'PH', 'FLOSS', 'RM', 'RMF', 'RMC', 'MTEMP', 'RMBHT', 'OPERIGT', 'EQIP#', 'RECBY', 'WITBY', 'CTRY', 'PROV', 'UWI', 'API', 'SRVC', 'DATE:3']\"",
+            "message": "Error during the processing of the LAS file."
+        }
+    ],
+    "Garnett Shoestring": [
+        {
+            "file": "1044924754",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        }
+    ],
     "Hall-Gurney": [
         {
-            "file": "1020420952",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420954",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420950",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
             "file": "1020420939",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1028405758",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT / COLLIVER, CARRIE _16.las'",
+            "error": "list index out of range",
             "message": "Error during the processing of the LAS file."
         },
         {
@@ -75,122 +225,169 @@
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1020420938",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420936",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420935",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1028405760",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT / COLLIVER, CARRIE _13.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420945",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420941",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420937",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420944",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420942",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420948",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420953",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420949",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420947",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1028405759",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT / COLLIVER, CARRIE _12.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420951",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420943",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
             "file": "1020420940",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420946",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/HallGurney/CO2 PROJECT /COLLIVER, CARTER _1-CO2-I.las'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044930992",
-            "error": "list index out of range",
+            "error": "Cannot reshape ~A data size (694,) into 49 columns",
             "message": "Error during the processing of the LAS file."
         }
     ],
-    "Marcotte": [
+    "Medicine Lodge North": [
         {
-            "file": "1044818924",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/Marcotte/Gunn/Gibson_3.las'",
+            "file": "1030278572",
+            "error": "single positional indexer is out-of-bounds",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1044571461",
-            "error": "[Errno 2] No such file or directory: '../data/v3.0_las_files/Marcotte/Gunn/Gibson_2.las'",
+            "file": "1030216610",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1029302891",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1030278565",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1029302876",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1029302888",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1029302858",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1030278553",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1030278544",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1030216617",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1029302883",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1030216628",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1030216613",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1030216601",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1029302867",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1030278547",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1029302861",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1030216621",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1030278551",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1029302879",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1029302865",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1030278568",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1030216631",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1030216599",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1030278562",
+            "error": "single positional indexer is out-of-bounds",
             "message": "Error during the processing of the LAS file."
         }
     ],
     "Morel": [
         {
-            "file": "1043562774",
-            "error": "list index out of range",
+            "file": "1043562772",
+            "error": "Cannot reshape ~A data size (103063,) into 22 columns",
+            "message": "Error during the processing of the LAS file."
+        }
+    ],
+    "Schaben": [
+        {
+            "file": "1001178735",
+            "error": "single positional indexer is out-of-bounds",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1043562772",
-            "error": "list index out of range",
+            "file": "1044816376",
+            "error": "Unable to allocate 215. GiB for an array with shape (98299,) and data type <U587469",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1001178895",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1001178685",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1043562827",
+            "error": "Cannot reshape ~A data size (138510,) into 4 columns",
             "message": "Error during the processing of the LAS file."
         }
     ],
@@ -201,10 +398,104 @@
             "message": "Error during the processing of the LAS file."
         }
     ],
-    "Shuck": [
+    "Thrall-Aagard": [
         {
-            "file": "1043453671",
-            "error": "Cannot reshape ~A data size (13851,) into 4 columns",
+            "file": "1041875978",
+            "error": "list index out of range",
+            "message": "Error during the processing of the LAS file."
+        }
+    ],
+    "Wellington": [
+        {
+            "file": "1042553226",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044243174",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1042553220",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1042553207",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1042553213",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1046114346",
+            "error": "Cannot reshape ~A data size (14073,) into 53 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1042328940",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044243184",
+            "error": "Cannot reshape ~A data size (6550,) into 4 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1042553215",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044038216",
+            "error": "Cannot reshape ~A data size (54800,) into 17 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044243199",
+            "error": "Cannot reshape ~A data size (3530,) into 6 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044638979",
+            "error": "Unable to allocate 411. GiB for an array with shape (81805,) and data type <U1348896",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044638996",
+            "error": "Unable to allocate 305. GiB for an array with shape (101577,) and data type <U806674",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1042328942",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044038215",
+            "error": "\"FLD not in ['STRT', 'STOP', 'STEP', 'NULL', 'COMP', 'LEAS', 'WELL', 'FLD:1', 'LOC', 'LOC1', 'LOC2', 'SECT', 'TWP', 'RANG', 'CNTY', 'STAT', 'CTRY', 'SRVC', 'DATE', 'API', 'UWI', 'PROV', 'MMDL', 'DMF', 'PDAT', 'RIG', 'LUL', 'FLD:2', 'SON', 'IQVR', 'SVCO', 'LMF', 'GRDC', 'MDEC', 'AZTC', 'MDIP', 'MFLD', 'TVDS', 'APD', 'GVFD', 'EGL', 'EPD', 'EKB', 'EDF', 'MAGU', 'VSC', 'FLD:3']\"",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1042202825",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044638993",
+            "error": "Cannot reshape ~A data size (193335,) into 87 columns",
+            "message": "Error during the processing of the LAS file."
+        }
+    ],
+    "Webster": [
+        {
+            "file": "1044818001",
+            "error": "Unable to allocate 27.2 GiB for an array with shape (112575,) and data type <U64833",
             "message": "Error during the processing of the LAS file."
         }
     ],

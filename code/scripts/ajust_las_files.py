@@ -5,11 +5,13 @@ import zipfile
 import json
 import tempfile
 import shutil
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import as_completed
 from scripts.download_las_files import print_progress_bar
 import warnings
 import numpy as np
+import gc
+import logging
 
 # Read CSV data into a Pandas DataFrame
 def read_csv_data(csv_path):
@@ -61,110 +63,119 @@ def log_error(file_path, error_info, field_name, log_file_path='../reports/02_LA
     except Exception as e:
         print(f"Error saving error log: {e}")
 
+
+
 def update_las(las_file_path, well_data, log_data, top_data, LAS_data, destination_folder):
     error_log = []
     try:
         # Ignore specific warnings and read LAS file
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', UserWarning)
+        with warnings.catch_warnings(record=True) as captured_warnings:
+            warnings.simplefilter('always', UserWarning)
+            lasio_logger = logging.getLogger('lasio')
+            lasio_logger.setLevel(logging.ERROR)
 
-        # Find KID for LAS file in LAS_data
-        kid = find_kid_for_las(os.path.basename(las_file_path), LAS_data)
-        las = lasio.read(las_file_path,  engine='normal', ignore_header_errors=True)
+            # Find KID for LAS file in LAS_data
+            kid = find_kid_for_las(os.path.basename(las_file_path), LAS_data)
+            las = lasio.read(las_file_path,  engine='normal', ignore_header_errors=True)
 
-        if kid:
+            if kid:
 
-            # Filter well, log and top data for this KID
-            filtered_well_data = well_data[well_data['KID'] == kid]
-            filtered_log_data = log_data[log_data['KID'] == kid]
-            filtered_top_data = top_data[top_data['KID'] == kid]
+                # Filter well, log and top data for this KID
+                filtered_well_data = well_data[well_data['KID'] == kid]
+                filtered_log_data = log_data[log_data['KID'] == kid]
+                filtered_top_data = top_data[top_data['KID'] == kid]
 
-            # Construct well name
-            well_name = f"{filtered_well_data['LEASE_NAME'].iloc[0]} {filtered_well_data['WELL_NAME'].iloc[0]}"
-            las.well['WELL'].value = well_name
+                # Construct well name
+                well_name = f"{filtered_well_data['LEASE_NAME'].iloc[0]} {filtered_well_data['WELL_NAME'].iloc[0]}"
+                las.well['WELL'].value = well_name
 
-            # Add start/stop depths
-            las.well['STRT'].value = filtered_log_data['TOP'].min() if not filtered_log_data.empty else None
-            las.well['STOP'].value = filtered_log_data['BOTTOM'].max() if not filtered_log_data.empty else None
+                # Add start/stop depths
+                las.well['STRT'].value = filtered_log_data['TOP'].min() if not filtered_log_data.empty else None
+                las.well['STOP'].value = filtered_log_data['BOTTOM'].max() if not filtered_log_data.empty else None
 
-            # Add other well information
-            if 'FLD' not in las.well:
-                las.well['FLD'] = lasio.HeaderItem(mnemonic='FLD', unit='', value='', descr='Field')
-            las.well['FLD'].value = filtered_well_data['FIELD_NAME'].iloc[0]
+                # Add other well information
+                if 'FLD' not in las.well:
+                    las.well['FLD'] = lasio.HeaderItem(mnemonic='FLD', unit='', value='', descr='Field')
+                las.well['FLD'].value = filtered_well_data['FIELD_NAME'].iloc[0]
 
-            if 'LOC' not in las.well:
-                las.well['LOC'] = lasio.HeaderItem(mnemonic='LOC', unit='', value='', descr='Location')
-            las.well['LOC'].value = filtered_log_data['LOCATION'].iloc[0]
+                if 'LOC' not in las.well:
+                    las.well['LOC'] = lasio.HeaderItem(mnemonic='LOC', unit='', value='', descr='Location')
+                las.well['LOC'].value = filtered_log_data['LOCATION'].iloc[0]
 
-            if 'CTRY' not in las.well:
-                las.well['CTRY'] = lasio.HeaderItem(mnemonic='CTRY', unit='', value='', descr='Country')
-            las.well['CTRY'].value = 'USA'
+                if 'CTRY' not in las.well:
+                    las.well['CTRY'] = lasio.HeaderItem(mnemonic='CTRY', unit='', value='', descr='Country')
+                las.well['CTRY'].value = 'USA'
 
-            if 'STAT' not in las.well:
-                las.well['STAT'] = lasio.HeaderItem(mnemonic='STAT', unit='', value='', descr='State')
-            las.well['STAT'].value = 'Kansas'
+                if 'STAT' not in las.well:
+                    las.well['STAT'] = lasio.HeaderItem(mnemonic='STAT', unit='', value='', descr='State')
+                las.well['STAT'].value = 'Kansas'
 
-            if 'PROV' not in las.well:
-                las.well['PROV'] = lasio.HeaderItem(mnemonic='PROV', unit='', value='', descr='Province')
-            las.well['PROV'].value = filtered_well_data['TOWNSHIP'].iloc[0]
+                if 'PROV' not in las.well:
+                    las.well['PROV'] = lasio.HeaderItem(mnemonic='PROV', unit='', value='', descr='Province')
+                las.well['PROV'].value = filtered_well_data['TOWNSHIP'].iloc[0]
 
-            if 'CNTY' not in las.well:
-                las.well['CNTY'] = lasio.HeaderItem(mnemonic='CNTY', unit='', value='', descr='County')
-            las.well['CNTY'].value = filtered_well_data['COUNTY'].iloc[0]
+                if 'CNTY' not in las.well:
+                    las.well['CNTY'] = lasio.HeaderItem(mnemonic='CNTY', unit='', value='', descr='County')
+                las.well['CNTY'].value = filtered_well_data['COUNTY'].iloc[0]
 
-            if 'UWI' not in las.well:
-                las.well['UWI'] = lasio.HeaderItem(mnemonic='UWI', unit='', value=kid, descr='Unique Well Identifier')
+                if 'UWI' not in las.well:
+                    las.well['UWI'] = lasio.HeaderItem(mnemonic='UWI', unit='', value=well_name, descr='Unique Well Identifier')
 
-            if 'API' not in las.well:
-                las.well['API'] = lasio.HeaderItem(mnemonic='API', unit='', value='', descr='API Number')
-            las.well['API'].value = filtered_well_data['API'].iloc[0]
+                if 'API' not in las.well:
+                    las.well['API'] = lasio.HeaderItem(mnemonic='API', unit='', value='', descr='API Number')
+                las.well['API'].value = filtered_well_data['API'].iloc[0]
 
-            if 'SRVC' not in las.well:
-                las.well['SRVC'] = lasio.HeaderItem(mnemonic='SRVC', unit='', value='', descr='Logger Service Company')
-            las.well['SRVC'].value = filtered_log_data['LOGGER'].iloc[0]
+                if 'SRVC' not in las.well:
+                    las.well['SRVC'] = lasio.HeaderItem(mnemonic='SRVC', unit='', value='', descr='Logger Service Company')
+                las.well['SRVC'].value = filtered_log_data['LOGGER'].iloc[0]
 
-            if 'DATE' not in las.well:
-                las.well['DATE'] = lasio.HeaderItem(mnemonic='DATE', unit='', value='', descr='Date logged')
-            las.well['DATE'].value = filtered_log_data['LOG_DATE'].iloc[0]
+                if 'DATE' not in las.well:
+                    las.well['DATE'] = lasio.HeaderItem(mnemonic='DATE', unit='', value='', descr='Date logged')
+                las.well['DATE'].value = filtered_log_data['LOG_DATE'].iloc[0]
 
-            if 'XCOORD' not in las.well:
-                las.well['XCOORD'] = lasio.HeaderItem(mnemonic='XCOORD', unit='NAD27', value='', descr='X Coordinate')
-            las.well['XCOORD'].value = filtered_well_data['NAD27_LONGITUDE'].iloc[0]
+                if 'XCOORD' not in las.well:
+                    las.well['XCOORD'] = lasio.HeaderItem(mnemonic='XCOORD', unit='NAD27', value='', descr='X Coordinate')
+                las.well['XCOORD'].value = filtered_well_data['NAD27_LONGITUDE'].iloc[0]
 
-            if 'YCOORD' not in las.well:
-                las.well['YCOORD'] = lasio.HeaderItem(mnemonic='YCOORD', unit='NAD27', value='', descr='Y Coordinate')
-            las.well['YCOORD'].value = filtered_well_data['NAD27_LATITUDE'].iloc[0]
+                if 'YCOORD' not in las.well:
+                    las.well['YCOORD'] = lasio.HeaderItem(mnemonic='YCOORD', unit='NAD27', value='', descr='Y Coordinate')
+                las.well['YCOORD'].value = filtered_well_data['NAD27_LATITUDE'].iloc[0]
 
-            las = add_formation_info_to_las_other_section(las, filtered_top_data)
+                las = add_formation_info_to_las_other_section(las, filtered_top_data)
 
-            # Construct output filename and path
-            base_filename = f"{filtered_well_data['LEASE_NAME'].iloc[0]}_{filtered_well_data['WELL_NAME'].iloc[0]}"
-            output_filename = f"{base_filename}.las"
-            output_path = os.path.join(destination_folder, output_filename)
-            
-            # Check if output file already exists
-            if os.path.exists(output_path):
-                base_las = lasio.read(output_path,  engine='normal', ignore_header_errors=True)
-
-                # Call merge_curves to merge curves from current file into base file
-                merge_curves(base_las, las)
+                # Construct output filename and path
+                lease_name = filtered_well_data['LEASE_NAME'].iloc[0].replace("/", "_").replace(" ", "_").replace(",", "_")
+                well_name = filtered_well_data['WELL_NAME'].iloc[0].replace("/", "_").replace(" ", "_").replace(",", "_")
+                base_filename = f"{lease_name}_{well_name}"
+                output_filename = f"{base_filename}.las"
+                output_path = os.path.join(destination_folder, output_filename)
                 
-                # Write merged data to output file
-                base_las.write(output_path, version=2.0, fmt='%.4f', mnemonics_header=True) 
+                # Check if output file already exists
+                if os.path.exists(output_path):
+                    base_las = lasio.read(output_path,  engine='normal', ignore_header_errors=True)
+
+                    # Call merge_curves to merge curves from current file into base file
+                    # merge_curves(base_las, las)
+                    merged_las = merge_curves(base_las, las)
+
+                    # Write merged data to output file
+                    # base_las.write(output_path, version=2.0, fmt='%.4f', mnemonics_header=True) 
+                    merged_las.write(output_path, version=2.0, fmt='%.4f', mnemonics_header=True)
+
+
+                else:
+                    # If output file does not exist, process and save this file as base
+                    las.write(output_path, version=2.0, fmt='%.4f', mnemonics_header=True)
 
             else:
-                # If output file does not exist, process and save this file as base
-                las.write(output_path, version=2.0, fmt='%.4f', mnemonics_header=True)
-
-        else:
-            # Log error if KID not found
-            error_info = {
-                'file': os.path.basename(las_file_path),
-                'error': "KID not found",
-                'message': "KID not found for file " + os.path.basename(las_file_path)
-            }
-            log_error(os.path.basename(las_file_path), error_info, filtered_well_data['FIELD_NAME'].iloc[0])
-                    
+                # Log error if KID not found
+                error_info = {
+                    'file': os.path.basename(las_file_path),
+                    'error': "KID not found",
+                    'message': "KID not found for file " + os.path.basename(las_file_path)
+                }
+                log_error(os.path.basename(las_file_path), error_info, filtered_well_data['FIELD_NAME'].iloc[0])
+            
     # Log any errors  
     except UserWarning as e:
         error_info = {
@@ -173,7 +184,7 @@ def update_las(las_file_path, well_data, log_data, top_data, LAS_data, destinati
             'message': str(e)
         }
         error_log.append(error_info)
-        log_error(las_file_path, error_info, filtered_well_data['FIELD_NAME'].iloc[0])  # Agrega el nombre del campo si es conocido
+        log_error(las_file_path, error_info, filtered_well_data['FIELD_NAME'].iloc[0])  
 
     except Exception as e:
         error_info = {
@@ -197,6 +208,10 @@ def update_las(las_file_path, well_data, log_data, top_data, LAS_data, destinati
         with open(log_file_path, 'w') as log_file:
             json.dump(error_log, log_file, indent=4)
 
+    del las
+    #del captured_warnings
+    gc.collect()
+
 # This function merges curves from 'las' into 'base_las'
 def merge_curves(base_las, additional_las):
     # Loop through each curve in the additional LAS file
@@ -204,6 +219,7 @@ def merge_curves(base_las, additional_las):
         if curve.mnemonic not in [c.mnemonic for c in base_las.curves]:
             data = np.interp(base_las.index, additional_las.index, curve.data)
             base_las.append_curve(mnemonic=curve.mnemonic, data=data, unit=curve.unit, descr=curve.descr)
+    return base_las
 
 def add_formation_info_to_las_other_section(las, top_data):
     # Create CSV header for formation data
@@ -259,8 +275,8 @@ def process_zip_and_las_files(zip_file_path, wells_data, logs_data, tops_data, L
 def process_las_files(source_folder, destination_folder, csv_folder):
     
     # Create thread pool executor to process files in parallel
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        
+    with ProcessPoolExecutor(max_workers=20) as executor:
+
         # Get list of field folder names sorted alphabetically
         field_folders = sorted([d for d in os.listdir(source_folder) if os.path.isdir(os.path.join(source_folder, d))])
         
@@ -298,3 +314,5 @@ def process_las_files(source_folder, destination_folder, csv_folder):
             field_name = future_to_field[future]
             progress_state[field_name] += 1
             print_progress_bar(progress_state[field_name], total_files_per_field[field_name], field_name, max(len(name) for name in field_folders))
+
+        executor.shutdown(wait=True)
