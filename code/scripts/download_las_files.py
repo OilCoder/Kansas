@@ -256,7 +256,7 @@ Generates a JSON error report in reports/error_report.json with any errors.
     # Print message on completion
     blue = '\033[94m'
     reset = '\033[0m'
-    error_report_file = Path('reports/error_report.json')
+    error_report_file = Path('reports/01_downloading_error_report.json')
 
     print(f"Download process completed. Please check '{blue}{error_report_file}{reset}' for details.")
 

@@ -12,6 +12,7 @@ import warnings
 import numpy as np
 import gc
 import logging
+from pathlib import Path
 
 # Read CSV data into a Pandas DataFrame
 def read_csv_data(csv_path):
@@ -316,3 +317,10 @@ def process_las_files(source_folder, destination_folder, csv_folder):
             print_progress_bar(progress_state[field_name], total_files_per_field[field_name], field_name, max(len(name) for name in field_folders))
 
         executor.shutdown(wait=True)
+
+    # Print message on completion
+    blue = '\033[94m'
+    reset = '\033[0m'
+    error_report_file = Path('reports/02_LAS_update_error_report.json')
+
+    print(f"Download process completed. Please check '{blue}{error_report_file}{reset}' for details.")
