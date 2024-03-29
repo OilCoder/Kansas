@@ -1,19 +1,11 @@
-# widgets.py
-import ipywidgets as widgets
 import os
+import ipywidgets as widgets
 
-def create_directory_selector(description, path):
-    """
-    Creates a widget to select a directory.
+base_data_path = '../data/v3.0_las_files'
 
-    Parameters:
-    description (str): Description of the selector.
-    path (str): Initial path to set in the selector.
-
-    Returns:
-    widgets.Dropdown: A dropdown widget with directories as options.
-    """
-    directories = [d for d in os.listdir(path) if os.path.isdir(os.path.join(path, d))]
+# Función para crear el selector de directorios
+def create_directory_selector(description, base_path):
+    directories = next(os.walk(base_path), (None, None, []))[1] 
     directory_selector = widgets.Dropdown(
         options=directories,
         description=description,

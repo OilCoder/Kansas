@@ -7,7 +7,7 @@
         },
         {
             "file": "1006347024",
-            "error": "Unable to allocate 27.5 GiB for an array with shape (52423,) and data type <U140776",
+            "error": "Cannot reshape ~A data size (38283,) into 8 columns",
             "message": "Error during the processing of the LAS file."
         },
         {
@@ -16,28 +16,28 @@
             "message": "Error during the processing of the LAS file."
         },
         {
+            "file": "1006346997",
+            "error": "Cannot reshape ~A data size (41163,) into 7 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
             "file": "1051789037",
             "error": "single positional indexer is out-of-bounds",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1003578121",
-            "error": "Cannot reshape ~A data size (145660,) into 17 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1006347023",
-            "error": "Unable to allocate 74.8 GiB for an array with shape (142549,) and data type <U140776",
+            "file": "1006347002",
+            "error": "Cannot reshape ~A data size (10361,) into 22 columns",
             "message": "Error during the processing of the LAS file."
         },
         {
             "file": "1006347019",
-            "error": "Cannot reshape ~A data size (153811,) into 23 columns",
+            "error": "Unable to allocate 43.2 GiB for an array with shape (147661,) and data type <U78455",
             "message": "Error during the processing of the LAS file."
         },
         {
             "file": "1006347020",
-            "error": "Cannot reshape ~A data size (153811,) into 23 columns",
+            "error": "Unable to allocate 43.2 GiB for an array with shape (147661,) and data type <U78455",
             "message": "Error during the processing of the LAS file."
         }
     ],
@@ -80,107 +80,97 @@
     "Cutter": [
         {
             "file": "1044913778",
-            "error": "Cannot reshape ~A data size (8671,) into 3 columns",
+            "error": "Cannot reshape ~A data size (10117,) into 3 columns",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1044891386",
-            "error": "Unable to allocate 1.02 TiB for an array with shape (107873,) and data type <U2602410",
+            "file": "1044891357",
+            "error": "Unable to allocate 56.1 GiB for an array with shape (72535,) and data type <U207710",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1044913569",
-            "error": "list index out of range",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044891359",
-            "error": "Unable to allocate 2.08 TiB for an array with shape (264237,) and data type <U2168403",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044891389",
-            "error": "Unable to allocate 2.08 TiB for an array with shape (264237,) and data type <U2168403",
+            "file": "1044891358",
+            "error": "Unable to allocate 262. GiB for an array with shape (338395,) and data type <U207710",
             "message": "Error during the processing of the LAS file."
         },
         {
             "file": "1044176974",
-            "error": "Unable to allocate 2.08 TiB for an array with shape (264237,) and data type <U2168403",
+            "error": "Unable to allocate 342. GiB for an array with shape (442015,) and data type <U207710",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1044891390",
-            "error": "Unable to allocate 2.08 TiB for an array with shape (264237,) and data type <U2168403",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044891384",
-            "error": "Unable to allocate 2.08 TiB for an array with shape (264237,) and data type <U2168403",
+            "file": "1044891389",
+            "error": "Unable to allocate 342. GiB for an array with shape (442015,) and data type <U207710",
             "message": "Error during the processing of the LAS file."
         },
         {
             "file": "1044891391",
-            "error": "Unable to allocate 2.08 TiB for an array with shape (264237,) and data type <U2168403",
+            "error": "Unable to allocate 342. GiB for an array with shape (442015,) and data type <U207710",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044891359",
+            "error": "Unable to allocate 342. GiB for an array with shape (442015,) and data type <U207710",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044891390",
+            "error": "Unable to allocate 342. GiB for an array with shape (442015,) and data type <U207710",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044891384",
+            "error": "Unable to allocate 342. GiB for an array with shape (442015,) and data type <U207710",
             "message": "Error during the processing of the LAS file."
         },
         {
             "file": "1044174999",
-            "error": "Unable to allocate 2.08 TiB for an array with shape (264237,) and data type <U2168403",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044913557",
-            "error": "Cannot reshape ~A data size (25724,) into 7 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044175000",
-            "error": "Unable to allocate 2.08 TiB for an array with shape (264237,) and data type <U2168403",
+            "error": "Unable to allocate 342. GiB for an array with shape (442015,) and data type <U207710",
             "message": "Error during the processing of the LAS file."
         },
         {
             "file": "1044913807",
-            "error": "Cannot reshape ~A data size (2199,) into 7 columns",
+            "error": "list index out of range",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044913554",
+            "error": "index -1 is out of bounds for axis 0 with size 0",
             "message": "Error during the processing of the LAS file."
         },
         {
             "file": "1044891383",
-            "error": "Unable to allocate 2.08 TiB for an array with shape (264237,) and data type <U2168403",
+            "error": "Unable to allocate 342. GiB for an array with shape (442015,) and data type <U207710",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1044913551",
-            "error": "Cannot reshape ~A data size (8509,) into 6 columns",
+            "file": "1044175000",
+            "error": "Unable to allocate 342. GiB for an array with shape (442015,) and data type <U207710",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1044913792",
-            "error": "Cannot reshape ~A data size (12195,) into 6 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044913556",
-            "error": "Cannot reshape ~A data size (2929,) into 6 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044891385",
-            "error": "Unable to allocate 2.08 TiB for an array with shape (264237,) and data type <U2168403",
+            "file": "1044913796",
+            "error": "Cannot reshape ~A data size (38876,) into 6 columns",
             "message": "Error during the processing of the LAS file."
         },
         {
             "file": "1044176975",
-            "error": "Unable to allocate 2.08 TiB for an array with shape (264237,) and data type <U2168403",
+            "error": "Unable to allocate 342. GiB for an array with shape (442015,) and data type <U207710",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044891385",
+            "error": "Unable to allocate 342. GiB for an array with shape (442015,) and data type <U207710",
             "message": "Error during the processing of the LAS file."
         },
         {
             "file": "1044891388",
-            "error": "Unable to allocate 2.08 TiB for an array with shape (264237,) and data type <U2168403",
+            "error": "Unable to allocate 342. GiB for an array with shape (442015,) and data type <U207710",
             "message": "Error during the processing of the LAS file."
         },
         {
             "file": "1044891387",
-            "error": "Unable to allocate 2.08 TiB for an array with shape (264237,) and data type <U2168403",
+            "error": "Unable to allocate 342. GiB for an array with shape (442015,) and data type <U207710",
             "message": "Error during the processing of the LAS file."
         }
     ],
@@ -201,11 +191,6 @@
             "file": "1044924754",
             "error": "single positional indexer is out-of-bounds",
             "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044230174",
-            "error": "list index out of range",
-            "message": "Error during the processing of the LAS file."
         }
     ],
     "Hall-Gurney": [
@@ -215,63 +200,8 @@
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1020420941",
-            "error": "index -1 is out of bounds for axis 0 with size 0",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420937",
-            "error": "'No ~ sections found. Is this a LAS file?'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420944",
-            "error": "'No ~ sections found. Is this a LAS file?'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420942",
-            "error": "'No ~ sections found. Is this a LAS file?'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420948",
-            "error": "'No ~ sections found. Is this a LAS file?'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420953",
-            "error": "'No ~ sections found. Is this a LAS file?'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420949",
-            "error": "'No ~ sections found. Is this a LAS file?'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420947",
-            "error": "'No ~ sections found. Is this a LAS file?'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420951",
-            "error": "'No ~ sections found. Is this a LAS file?'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420943",
-            "error": "'No ~ sections found. Is this a LAS file?'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
             "file": "1020420940",
-            "error": "'No ~ sections found. Is this a LAS file?'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420946",
-            "error": "'No ~ sections found. Is this a LAS file?'",
+            "error": "Cannot reshape ~A data size (2924,) into 49 columns",
             "message": "Error during the processing of the LAS file."
         }
     ],
@@ -317,12 +247,12 @@
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1030278544",
+            "file": "1030278553",
             "error": "single positional indexer is out-of-bounds",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1030278553",
+            "file": "1030278544",
             "error": "single positional indexer is out-of-bounds",
             "message": "Error during the processing of the LAS file."
         },
@@ -372,12 +302,12 @@
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1030278551",
+            "file": "1029302879",
             "error": "single positional indexer is out-of-bounds",
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1029302879",
+            "file": "1030278551",
             "error": "single positional indexer is out-of-bounds",
             "message": "Error during the processing of the LAS file."
         },
@@ -407,13 +337,6 @@
             "message": "Error during the processing of the LAS file."
         }
     ],
-    "Morel": [
-        {
-            "file": "1043562772",
-            "error": "Unable to allocate 126. GiB for an array with shape (67894,) and data type <U498638",
-            "message": "Error during the processing of the LAS file."
-        }
-    ],
     "Schaben": [
         {
             "file": "1001178735",
@@ -421,17 +344,17 @@
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1044816376",
-            "error": "Unable to allocate 226. GiB for an array with shape (91657,) and data type <U660854",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1001178895",
-            "error": "single positional indexer is out-of-bounds",
+            "file": "1044815725",
+            "error": "Cannot reshape ~A data size (136303,) into 18 columns",
             "message": "Error during the processing of the LAS file."
         },
         {
             "file": "1001178685",
+            "error": "single positional indexer is out-of-bounds",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1001178895",
             "error": "single positional indexer is out-of-bounds",
             "message": "Error during the processing of the LAS file."
         }
@@ -443,17 +366,10 @@
             "message": "Error during the processing of the LAS file."
         }
     ],
-    "Shuck": [
-        {
-            "file": "1043453671",
-            "error": "Cannot reshape ~A data size (5821,) into 4 columns",
-            "message": "Error during the processing of the LAS file."
-        }
-    ],
     "Thrall-Aagard": [
         {
-            "file": "1041875979",
-            "error": "Cannot reshape ~A data size (13103,) into 4 columns",
+            "file": "1041875978",
+            "error": "Cannot reshape ~A data size (10191,) into 4 columns",
             "message": "Error during the processing of the LAS file."
         }
     ],
@@ -474,8 +390,8 @@
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1045000217",
-            "error": "Unable to allocate 40.2 GiB for an array with shape (33213,) and data type <U324877",
+            "file": "1046114328",
+            "error": "Cannot reshape ~A data size (46710,) into 23 columns",
             "message": "Error during the processing of the LAS file."
         },
         {
@@ -489,18 +405,18 @@
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1046114302",
-            "error": "Unable to allocate 40.2 GiB for an array with shape (33213,) and data type <U324877",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
             "file": "1042328940",
             "error": "single positional indexer is out-of-bounds",
             "message": "Error during the processing of the LAS file."
         },
         {
             "file": "1046114346",
-            "error": "Unable to allocate 40.2 GiB for an array with shape (33213,) and data type <U324877",
+            "error": "Cannot reshape ~A data size (66114,) into 53 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044243179",
+            "error": "list index out of range",
             "message": "Error during the processing of the LAS file."
         },
         {
@@ -509,18 +425,8 @@
             "message": "Error during the processing of the LAS file."
         },
         {
-            "file": "1044638995",
-            "error": "Cannot cast array data from dtype('<U32') to dtype('float64') according to the rule 'safe'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
             "file": "1044243199",
-            "error": "Cannot reshape ~A data size (2195,) into 6 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1046114330",
-            "error": "Unable to allocate 40.2 GiB for an array with shape (33213,) and data type <U324877",
+            "error": "Cannot reshape ~A data size (22736,) into 6 columns",
             "message": "Error during the processing of the LAS file."
         },
         {
@@ -529,28 +435,23 @@
             "message": "Error during the processing of the LAS file."
         },
         {
+            "file": "1044638993",
+            "error": "Cannot reshape ~A data size (31095,) into 17 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044638979",
+            "error": "Cannot reshape ~A data size (131839,) into 17 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
+            "file": "1044564845",
+            "error": "Cannot reshape ~A data size (167396,) into 17 columns",
+            "message": "Error during the processing of the LAS file."
+        },
+        {
             "file": "1044038215",
             "error": "\"FLD not in ['STRT', 'STOP', 'STEP', 'NULL', 'COMP', 'LEAS', 'WELL', 'FLD:1', 'LOC', 'LOC1', 'LOC2', 'SECT', 'TWP', 'RANG', 'CNTY', 'STAT', 'CTRY', 'SRVC', 'DATE', 'API', 'UWI', 'PROV', 'MMDL', 'DMF', 'PDAT', 'RIG', 'LUL', 'FLD:2', 'SON', 'IQVR', 'SVCO', 'LMF', 'GRDC', 'MDEC', 'AZTC', 'MDIP', 'MFLD', 'TVDS', 'APD', 'GVFD', 'EGL', 'EPD', 'EKB', 'EDF', 'MAGU', 'VSC', 'FLD:3']\"",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044638996",
-            "error": "Unable to allocate 175. GiB for an array with shape (122161,) and data type <U384986",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1045000218",
-            "error": "Unable to allocate 40.2 GiB for an array with shape (33213,) and data type <U324877",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044638993",
-            "error": "Unable to allocate 219. GiB for an array with shape (152691,) and data type <U384986",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044038216",
-            "error": "Unable to allocate 315. GiB for an array with shape (219431,) and data type <U384986",
             "message": "Error during the processing of the LAS file."
         },
         {
@@ -560,19 +461,14 @@
         },
         {
             "file": "1045006615",
-            "error": "Unable to allocate 40.2 GiB for an array with shape (33213,) and data type <U324877",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044638992",
-            "error": "Unable to allocate 1020. GiB for an array with shape (711319,) and data type <U384986",
+            "error": "Cannot reshape ~A data size (20020,) into 54 columns",
             "message": "Error during the processing of the LAS file."
         }
     ],
     "Webster": [
         {
             "file": "1044818001",
-            "error": "Unable to allocate 84.9 GiB for an array with shape (97224,) and data type <U234291",
+            "error": "Unable to allocate 136. GiB for an array with shape (73832,) and data type <U493029",
             "message": "Error during the processing of the LAS file."
         }
     ],
