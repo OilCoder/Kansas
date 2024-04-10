@@ -2,3 +2,6 @@
 data/
 images/
 .vscode/
+code/txt_filtes/
+
+*.log

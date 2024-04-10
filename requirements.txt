@@ -39,3 +39,4 @@ striplog
 pandas 
 numpy
 matplotlib
+chroma
