@@ -7,12 +7,21 @@ import tempfile
 import shutil
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import as_completed
-from scripts.download_las_files import print_progress_bar
+from src.download_las_files import print_progress_bar
 import warnings
 import numpy as np
 import gc
 import logging
 from pathlib import Path
+
+import os
+import pandas as pd
+import welly
+from welly import Well
+import warnings
+import logging
+import json
+import gc
 
 # Read CSV data into a Pandas DataFrame
 def read_csv_data(csv_path):
@@ -64,8 +73,6 @@ def log_error(file_path, error_info, field_name, log_file_path='../reports/02_LA
     except Exception as e:
         print(f"Error saving error log: {e}")
 
-
-
 def update_las(las_file_path, well_data, log_data, top_data, LAS_data, destination_folder):
     error_log = []
     try:
@@ -77,7 +84,7 @@ def update_las(las_file_path, well_data, log_data, top_data, LAS_data, destinati
 
             # Find KID for LAS file in LAS_data
             kid = find_kid_for_las(os.path.basename(las_file_path), LAS_data)
-            las = lasio.read(las_file_path,  engine='normal', ignore_header_errors=True)
+            las = lasio.read(las_file_path,  engine='normal', ignore_header_errors=False)
 
             if kid:
 

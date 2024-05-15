@@ -2,30 +2,27 @@ import os
 import ipywidgets as widgets
 from IPython.display import display
 
-def create_curve_selection_ui(unique_curves_list):
-    checkboxes = [widgets.Checkbox(value=False, description=curve, disabled=False) for curve in unique_curves_list]
+def create_curve_selection_ui(unique_curves_list, on_selection_done):
+    checkboxes = [widgets.Checkbox(value=False, description=curve) for curve in unique_curves_list]
     half_len = len(checkboxes) // 2
     left_column = widgets.VBox(children=checkboxes[:half_len])
     right_column = widgets.VBox(children=checkboxes[half_len:])
     checkbox_container = widgets.HBox(children=[left_column, right_column])
 
-    # An output widget to store and display the selected curves
-    output_widget = widgets.Output()
-
+    # Button to confirm the selection
     confirm_button = widgets.Button(description="Confirm Selection")
 
+    # Function to call the provided callback with the selected curves
     def on_confirm_button_clicked(b):
-        with output_widget:
-            output_widget.clear_output()  # Clear the previous output
-            selected_curves = [checkbox.description for checkbox in checkboxes if checkbox.value]
-            print("Selected curves:", selected_curves)  # Display selected curves
+        selected_curves = [checkbox.description for checkbox in checkboxes if checkbox.value]
+        on_selection_done(selected_curves)  # Invoke the callback function
 
     confirm_button.on_click(on_confirm_button_clicked)
 
-    # Display the UI elements
-    display(checkbox_container, confirm_button, output_widget)
+    # Display the checkbox container and the button
+    display(checkbox_container, confirm_button)
 
-    return output_widget
+
 
 def create_directory_selector(description, base_path, callback, default_directory=None):
     directories = next(os.walk(base_path), (None, None, []))[1]
