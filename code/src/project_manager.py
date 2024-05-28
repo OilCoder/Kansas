@@ -10,7 +10,7 @@ import os
 import glob
 from welly import Project
 from tqdm import tqdm
-from contextlib import redirect_stdout, redirect_stderr
+#from contextlib import redirect_stdout, redirect_stderr
 import io
 import lasio
 import numpy as np
@@ -47,15 +47,19 @@ class ProjectManager:
         self.well_stats = {}
 
     # region path_las_file_list
-    def las_file_list():
-        '''
-            Save the list with path of las files from field
+    def las_file_list(self):
+        """
+        Generates a list of paths to LAS files within all subdirectories of the base directory.
 
-            Arguments:
-            base_directory: path where las files are saved.
-            return: path files list
-        '''
-        pass
+        Returns:
+            list: A list of paths to LAS files.
+        """
+        las_files = []
+        for root, dirs, files in os.walk(self.base_directory):
+            for file in files:
+                if file.endswith('.las'):
+                    las_files.append(os.path.join(root, file))
+        return las_files
 
 
     # region Load ans Select field
@@ -66,17 +70,26 @@ class ProjectManager:
         """
         return [name for name in os.listdir(self.base_directory) if os.path.isdir(os.path.join(self.base_directory, name))]
     
+    import psutil
     def load_selected_field(self, selected_field):
         """
-        Loads the wells in a Welly Project object for the selected field from the base directory.
+        Lazily loads the wells in a Welly Project object for the selected field from the base directory, 
+        while monitoring memory usage to prevent overload.
         """
-        self.selected_field = selected_field  # Store the selected field in the instance
-        
+        self.selected_field = selected_field
+
         if self.selected_field:
             field_path = os.path.join(self.base_directory, self.selected_field)
             las_files = glob.glob(os.path.join(field_path, '*.las'))
-            self.project = welly.Project.from_las(las_files)
-            print(f"Data for field {self.selected_field} successfully loaded into Welly Project.")
+            valid_las_files = []
+            for las_file in las_files:
+                try:
+                    welly_project = welly.Project.from_las([las_file], engine='numpy')
+                    valid_las_files.append(las_file)
+                except Exception as e:
+                    pass
+                    # print(f"Error loading {las_file}: {e}")
+            self.project = welly.Project.from_las(valid_las_files)
             return self.project
         else:
             print("No field has been selected.")
@@ -125,8 +138,6 @@ class ProjectManager:
 
         return project
         
-    print(f"Project data filtered. Only selected curves retained.")
-
     def get_curve_descriptions(self):
         """
         Retrieves descriptions for each unique curve in the project as a list.

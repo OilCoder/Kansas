@@ -40,3 +40,4 @@ pandas
 numpy
 matplotlib
 chroma
+follium

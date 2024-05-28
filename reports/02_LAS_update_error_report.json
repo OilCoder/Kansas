@@ -1,693 +1,187 @@
 {
-    "Wellington": [
-        {
-            "file": "1042553231",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1045006615",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044564846",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1046114346",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1042553226",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044243174",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1042553220",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1042553207",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1042553213",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1042328940",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044243179",
-            "error": "Cannot reshape ~A data size (2249,) into 3 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1042553215",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044638979",
-            "error": "list index out of range",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1042591268",
-            "error": "Cannot reshape ~A data size (1461,) into 6 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1042328942",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044038215",
-            "error": "\"FLD not in ['STRT', 'STOP', 'STEP', 'NULL', 'COMP', 'LEAS', 'WELL', 'FLD:1', 'LOC', 'LOC1', 'LOC2', 'SECT', 'TWP', 'RANG', 'CNTY', 'STAT', 'CTRY', 'SRVC', 'DATE', 'API', 'UWI', 'PROV', 'MMDL', 'DMF', 'PDAT', 'RIG', 'LUL', 'FLD:2', 'SON', 'IQVR', 'SVCO', 'LMF', 'GRDC', 'MDEC', 'AZTC', 'MDIP', 'MFLD', 'TVDS', 'APD', 'GVFD', 'EGL', 'EPD', 'EKB', 'EDF', 'MAGU', 'VSC', 'FLD:3']\"",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1042202825",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        }
-    ],
-    "Zenith-Peace Creek": [
-        {
-            "file": "1021084897",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084893",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1028091686",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084905",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084912",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084916",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084898",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084903",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084906",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084896",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084904",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084899",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084914",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044984203",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1043691467",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084889",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084911",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084876",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1046076028",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084863",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084887",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084892",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084910",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084894",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084865",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1043563745",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084890",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084908",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084895",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044931022",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044817447",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1046076757",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1045113154",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044571601",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044984136",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084902",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084914",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1021084911",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        }
-    ],
-    "Peace Creek": [
-        {
-            "file": "1043696099",
-            "error": "'Project' object has no attribute 'header'",
-            "message": "Error during the processing of the LAS file."
-        }
-    ],
     "Arroyo": [
         {
-            "file": "1006347013",
-            "error": "Cannot reshape ~A data size (9531,) into 6 columns",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1044186095",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         },
         {
-            "file": "1051789049",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1006347024",
-            "error": "Cannot reshape ~A data size (7356,) into 8 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1006347031",
-            "error": "Cannot cast array data from dtype('<U32') to dtype('float64') according to the rule 'safe'",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1051789037",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1006346997",
-            "error": "Cannot reshape ~A data size (8080,) into 7 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1006347004",
-            "error": "Cannot reshape ~A data size (29621,) into 18 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1006347002",
-            "error": "Cannot reshape ~A data size (87418,) into 18 columns",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1044186096",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         }
     ],
-    "Bemis-Shutts": [
+    "BemisShutts": [
         {
-            "file": "1043914397",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1037024701",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         },
         {
-            "file": "1043853068",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1043239019",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         },
         {
-            "file": "1046502101",
-            "error": "\"DATE not in ['STRT', 'STOP', 'STEP', 'NULL', 'COMP', 'WELL', 'FLD', 'LOC', 'CNTY', 'DATE:1', 'STAT', 'SECT', 'TOWN', 'RANG', 'APINO', 'PDAT', 'LMF', 'DMF', 'EBK', 'EDF', 'EGL', 'DATE:2', 'TDD1', 'TDL1', 'BLI1', 'TLI1', 'BHS1', 'DFT1', 'SPPM', 'DFDV1', 'VIS', 'PH', 'FLOSS', 'RM', 'RMF', 'RMC', 'MTEMP', 'RMBHT', 'OPERIGT', 'EQIP#', 'RECBY', 'WITBY', 'CTRY', 'PROV', 'UWI', 'API', 'SRVC', 'DATE:3']\"",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044235770",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1043454106",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         }
     ],
-    "Bradshaw Gas Area": [
+    "BradshawGasArea": [
         {
-            "file": "1028091627",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1002920002",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         }
     ],
     "Burrton": [
         {
-            "file": "1044203992",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1033973822",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         }
     ],
     "Cutter": [
         {
-            "file": "1044913778",
-            "error": "Cannot reshape ~A data size (10840,) into 3 columns",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "1044091122.las",
+            "Error": "Cannot reshape ~A data size (65451,) into 7 columns",
+            "Message": "Error reading LAS file."
         },
         {
-            "file": "1044891356",
-            "error": "Cannot reshape ~A data size (25216,) into 31 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044913568",
-            "error": "Cannot reshape ~A data size (711,) into 2 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044913718",
-            "error": "list index out of range",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044891384",
-            "error": "Cannot reshape ~A data size (30428,) into 60 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044913800",
-            "error": "list index out of range",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044913551",
-            "error": "Cannot reshape ~A data size (13933,) into 6 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044913554",
-            "error": "Cannot reshape ~A data size (13199,) into 6 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044913796",
-            "error": "Cannot reshape ~A data size (9531,) into 6 columns",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "1044080525.las",
+            "Error": "Cannot reshape ~A data size (51986,) into 6 columns",
+            "Message": "Error reading LAS file."
         }
     ],
-    "Wildcat": [
+    "GarnettShoestring": [
         {
-            "file": "1044913567",
-            "error": "Cannot reshape ~A data size (7225,) into 3 columns",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1044066218",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         }
     ],
-    "East Fork": [
+    "MedicineLodgeNorth": [
         {
-            "file": "1052604121",
-            "error": "\"DATE not in ['STRT', 'STOP', 'STEP', 'NULL', 'COMP', 'WELL', 'FLD', 'LOC', 'CNTY', 'DATE:1', 'STAT', 'SECT', 'TOWN', 'RANG', 'APINO', 'PDAT', 'LMF', 'DMF', 'EBK', 'EDF', 'EGL', 'DATE:2', 'TDD1', 'TDL1', 'BLI1', 'TLI1', 'BHS1', 'DFT1', 'SPPM', 'DFDV1', 'VIS', 'PH', 'FLOSS', 'RM', 'RMF', 'RMC', 'MTEMP', 'RMBHT', 'OPERIGT', 'EQIP#', 'RECBY', 'WITBY', 'CTRY', 'PROV', 'UWI', 'API', 'SRVC', 'DATE:3']\"",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1006014888",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         },
         {
-            "file": "1046517572",
-            "error": "\"DATE not in ['STRT', 'STOP', 'STEP', 'NULL', 'COMP', 'WELL', 'FLD', 'LOC', 'CNTY', 'DATE:1', 'STAT', 'SECT', 'TOWN', 'RANG', 'APINO', 'PDAT', 'LMF', 'DMF', 'EBK', 'EDF', 'EGL', 'DATE:2', 'TDD1', 'TDL1', 'BLI1', 'TLI1', 'BHS1', 'DFT1', 'SPPM', 'DFDV1', 'VIS', 'PH', 'FLOSS', 'RM', 'RMF', 'RMC', 'MTEMP', 'RMBHT', 'OPERIGT', 'EQIP#', 'RECBY', 'WITBY', 'CTRY', 'PROV', 'UWI', 'API', 'SRVC', 'DATE:3']\"",
-            "message": "Error during the processing of the LAS file."
-        }
-    ],
-    "Garnett Shoestring": [
-        {
-            "file": "1044924754",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        }
-    ],
-    "Hall-Gurney": [
-        {
-            "file": "1046437758",
-            "error": "\"DATE not in ['STRT', 'STOP', 'STEP', 'NULL', 'COMP', 'WELL', 'FLD', 'LOC', 'CNTY', 'DATE:1', 'STAT', 'SECT', 'TOWN', 'RANG', 'APINO', 'PDAT', 'LMF', 'DMF', 'EBK', 'EDF', 'EGL', 'DATE:2', 'TDD1', 'TDL1', 'BLI1', 'TLI1', 'BHS1', 'DFT1', 'SPPM', 'DFDV1', 'VIS', 'PH', 'FLOSS', 'RM', 'RMF', 'RMC', 'MTEMP', 'RMBHT', 'OPERIGT', 'EQIP#', 'RECBY', 'WITBY', 'CTRY', 'PROV', 'UWI', 'API', 'SRVC', 'DATE:3']\"",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1006014248",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         },
         {
-            "file": "1020420936",
-            "error": "Cannot reshape ~A data size (2203,) into 9 columns",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1006017038",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         },
         {
-            "file": "1020420941",
-            "error": "Cannot reshape ~A data size (11891,) into 28 columns",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1006014244",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         },
         {
-            "file": "1020420937",
-            "error": "Cannot reshape ~A data size (11891,) into 28 columns",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1006014642",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         },
         {
-            "file": "1020420944",
-            "error": "Cannot reshape ~A data size (11891,) into 28 columns",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1006015413",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         },
         {
-            "file": "1020420942",
-            "error": "Cannot reshape ~A data size (11891,) into 28 columns",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1002886181",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         },
         {
-            "file": "1020420948",
-            "error": "Cannot reshape ~A data size (11891,) into 28 columns",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1006017843",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         },
         {
-            "file": "1020420953",
-            "error": "Cannot reshape ~A data size (11891,) into 28 columns",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1006014087",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         },
         {
-            "file": "1020420949",
-            "error": "Cannot reshape ~A data size (11891,) into 28 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420947",
-            "error": "Cannot reshape ~A data size (11891,) into 28 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420943",
-            "error": "Cannot reshape ~A data size (11891,) into 28 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420951",
-            "error": "Cannot reshape ~A data size (11891,) into 28 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420940",
-            "error": "Cannot reshape ~A data size (11891,) into 28 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1020420946",
-            "error": "Cannot reshape ~A data size (11891,) into 28 columns",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1044930992",
-            "error": "Cannot reshape ~A data size (12538,) into 13 columns",
-            "message": "Error during the processing of the LAS file."
-        }
-    ],
-    "Medicine Lodge North": [
-        {
-            "file": "1030278572",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1030216610",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1029302891",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1029302894",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1030278565",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1029302876",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1029302888",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1029302858",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1030278553",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1030278544",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1030216617",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1029302883",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1030216628",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1030216613",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1030216601",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1029302867",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1030278547",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1029302861",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1030216621",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1030278551",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1029302879",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1029302865",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1030278568",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1030216631",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1030216599",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        },
-        {
-            "file": "1030278562",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
-        }
-    ],
-    "Morel": [
-        {
-            "file": "1043562772",
-            "error": "Cannot reshape ~A data size (21482,) into 22 columns",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1006014007",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         }
     ],
     "Schaben": [
         {
-            "file": "1001178735",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1006104496",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         },
         {
-            "file": "1001178895",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1037337001",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
+        }
+    ],
+    "Wellington": [
+        {
+            "LASFILE": "KID_1042375505",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         },
         {
-            "file": "1001178685",
-            "error": "single positional indexer is out-of-bounds",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1024492615",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
+        },
+        {
+            "LASFILE": "KID_1024492621",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
+        },
+        {
+            "LASFILE": "KID_1024492611",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
+        },
+        {
+            "LASFILE": "KID_1024492645",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
+        },
+        {
+            "LASFILE": "KID_1024492609",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
+        },
+        {
+            "LASFILE": "KID_1001328406",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
+        },
+        {
+            "LASFILE": "KID_1024492567",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         }
     ],
-    "Scoda": [
+    "ZenithPeaceCreek": [
         {
-            "file": "1046473046",
-            "error": "\"DATE not in ['STRT', 'STOP', 'STEP', 'NULL', 'COMP', 'WELL', 'FLD', 'LOC', 'CNTY', 'DATE:1', 'STAT', 'SECT', 'TOWN', 'RANG', 'APINO', 'PDAT', 'LMF', 'DMF', 'EBK', 'EDF', 'EGL', 'DATE:2', 'TDD1', 'TDL1', 'BLI1', 'TLI1', 'BHS1', 'DFT1', 'SPPM', 'DFDV1', 'VIS', 'PH', 'FLOSS', 'RM', 'RMF', 'RMC', 'MTEMP', 'RMBHT', 'OPERIGT', 'EQIP#', 'RECBY', 'WITBY', 'CTRY', 'PROV', 'UWI', 'API', 'SRVC', 'DATE:3']\"",
-            "message": "Error during the processing of the LAS file."
-        }
-    ],
-    "Shuck": [
+            "LASFILE": "KID_1006117501",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
+        },
         {
-            "file": "1043453677",
-            "error": "Cannot reshape ~A data size (3652,) into 5 columns",
-            "message": "Error during the processing of the LAS file."
-        }
-    ],
-    "Thrall-Aagard": [
+            "LASFILE": "KID_1006117622",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
+        },
         {
-            "file": "1041875979",
-            "error": "Cannot reshape ~A data size (470,) into 4 columns",
-            "message": "Error during the processing of the LAS file."
+            "LASFILE": "KID_1006117666",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
         }
     ]
 }
