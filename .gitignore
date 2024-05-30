@@ -2,7 +2,7 @@
 data/*
 
 # But, do not ignore these specific folders
-!data/v1.0_raw_data/
+
 !data/v1.0_raw_data/Morel/
 !data/v1.0_raw_data/KraftPrusa/
 !data/v1.0_raw_data/Arroyo/
