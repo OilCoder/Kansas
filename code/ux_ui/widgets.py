@@ -11,38 +11,7 @@ import ipywidgets as widgets
 from IPython.display import display
 
 # region Select field
-def load_and_select_field(project_manager):
-    field_selector = widgets.Dropdown(
-        options=project_manager.fields,
-        description='Select Field:',
-        disabled=False,
-    )
 
-    load_data_button = widgets.Button(description="Load Data")
-    
-    def on_load_data_clicked(b):
-        selected_field = field_selector.value
-        print(f"Selected field: {selected_field}")
-        
-        # Load the selected field data into the Welly Project object
-        project = project_manager.load_selected_field(selected_field)
-        if project:
-            print("Project loaded successfully.")
-        else:
-            print("Error loading project.")
-        
-        # Update the dropdown options to reflect the current state
-        field_selector.options = project_manager.fields
-        # Call clear_output directly
-        clear_output(wait=True)
-        display(field_selector, load_data_button)
-        print(f"Data for field {selected_field} loaded successfully.")
-        
-    load_data_button.on_click(on_load_data_clicked)
-    
-    display(field_selector, load_data_button)
-
-    return field_selector
 
 # region Display curve in for well
 def generate_heatmap(project_manager):

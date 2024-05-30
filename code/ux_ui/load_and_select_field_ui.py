@@ -2,7 +2,6 @@ import ipywidgets as widgets
 from IPython.display import display, clear_output, HTML
 import folium
 from src.project_manager import ProjectManager
-from contextlib import redirect_stdout
 
 def load_and_select_field_ui(project_manager):
     # Using an HTML widget to create a styled and centered label
@@ -33,9 +32,28 @@ def load_and_select_field_ui(project_manager):
             if field_selector.value:
                 project = project_manager.load_selected_field(field_selector.value)
                 if project:
-                    print(f"Field: {field_selector.value}") 
-
+                    print(f"Field: {field_selector.value}")
                     print(f"Loaded {len(project)} wells.")
+
+                    # Get well locations and plot on the map
+                    well_locations = []
+                    for well in project:
+                        if 'NAD27_LATITUDE' in well.location and 'NAD27_LONGITUDE' in well.location:
+                            lat = well.location['NAD27_LATITUDE']
+                            lon = well.location['NAD27_LONGITUDE']
+                            well_locations.append((lat, lon))
+                            folium.Marker(location=(lat, lon), popup=well.name).add_to(m)
+
+                    # Plot the field area on the map
+                    field_description = project_manager.field_descriptions.get(field_selector.value, {})
+                    for township, sections in field_description.items():
+                        for section in sections:
+                            # This is a placeholder; you need to convert sections to coordinates
+                            # Example: folium.Polygon(locations=[(lat1, lon1), (lat2, lon2), ...], color='blue').add_to(m)
+                            pass
+
+                    map_html = m._repr_html_()
+                    map_widget.value = map_html
                 else:
                     print("Failed to load data. Check the LAS files in the selected field.")
             else:
@@ -61,4 +79,3 @@ def load_and_select_field_ui(project_manager):
     )
 
     display(app_layout)
-

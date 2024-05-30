@@ -18,12 +18,12 @@
             "Message": "No well or log information found for KID."
         },
         {
-            "LASFILE": "KID_1043239019",
+            "LASFILE": "KID_1043454106",
             "Error": "No well or log information found for KID.",
             "Message": "No well or log information found for KID."
         },
         {
-            "LASFILE": "KID_1043454106",
+            "LASFILE": "KID_1043239019",
             "Error": "No well or log information found for KID.",
             "Message": "No well or log information found for KID."
         }
@@ -52,6 +52,16 @@
             "LASFILE": "1044080525.las",
             "Error": "Cannot reshape ~A data size (51986,) into 6 columns",
             "Message": "Error reading LAS file."
+        },
+        {
+            "LASFILE": "1044091122.las",
+            "Error": "Cannot reshape ~A data size (65451,) into 7 columns",
+            "Message": "Error reading LAS file."
+        },
+        {
+            "LASFILE": "1044080525.las",
+            "Error": "Cannot reshape ~A data size (51986,) into 6 columns",
+            "Message": "Error reading LAS file."
         }
     ],
     "GarnettShoestring": [
@@ -62,11 +72,6 @@
         }
     ],
     "MedicineLodgeNorth": [
-        {
-            "LASFILE": "KID_1006014888",
-            "Error": "No well or log information found for KID.",
-            "Message": "No well or log information found for KID."
-        },
         {
             "LASFILE": "KID_1006014248",
             "Error": "No well or log information found for KID.",
@@ -79,6 +84,11 @@
         },
         {
             "LASFILE": "KID_1006014244",
+            "Error": "No well or log information found for KID.",
+            "Message": "No well or log information found for KID."
+        },
+        {
+            "LASFILE": "KID_1006014888",
             "Error": "No well or log information found for KID.",
             "Message": "No well or log information found for KID."
         },

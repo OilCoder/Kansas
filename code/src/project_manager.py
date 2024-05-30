@@ -84,7 +84,7 @@ class ProjectManager:
             valid_las_files = []
             for las_file in las_files:
                 try:
-                    welly_project = welly.Project.from_las([las_file], engine='numpy')
+                    welly_project = welly.Project.from_las([las_file], engine='normal')
                     valid_las_files.append(las_file)
                 except Exception as e:
                     pass

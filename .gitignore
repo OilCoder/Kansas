@@ -1,7 +1,18 @@
 # Ignore everything in the data directory
-data/
+data/*
+
+# But, do not ignore these specific folders
+!data/v1.0_raw_data/
+!data/v1.0_raw_data/Morel/
+!data/v1.0_raw_data/KraftPrusa/
+!data/v1.0_raw_data/Arroyo/
+!data/v1.0_raw_data/Burrton/
+!data/v1.0_raw_data/Cooper/
+
+# Ignore everything in images and vscode directories
 images/
 .vscode/
-code/txt_filtes/
+code/txt_filtres/
 
+# Ignore log files
 *.log

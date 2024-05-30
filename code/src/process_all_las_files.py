@@ -21,44 +21,24 @@ def print_progress_bar(iteration, total, field_name, max_field_length, length=50
       max_field_length: The maximum length of the field name
       length: The length of the progress bar in characters
     """
-    # Define start and end colors for the progress bar
     start_color = (234, 214, 0)
     end_color = (4, 86, 235)
-    
-    # Extract RGB values for start and end colors
     start_red, start_green, start_blue = start_color  
     end_red, end_green, end_blue = end_color
 
-    # Calculate filled length based on current iteration
     filled_length = int(length * iteration // total)
     
-    # Initialize progress bar string
     bar = ''
-
-    # Loop to generate progress bar
     for i in range(length):
-        
-        # Calculate color gradient ratio
         ratio = i / length
-        
-        # Calculate gradient RGB values
         red = int((end_red - start_red) * ratio + start_red)
         green = int((end_green - start_green) * ratio + start_green)
         blue = int((end_blue - start_blue) * ratio + start_blue)
-
-        # Generate colored block if within filled length
         color = f"\033[48;2;{red};{green};{blue}m" if i < filled_length else "\033[100m"
-        
-        # Add block to progress bar
         bar += color + ' '
 
-    # Pad field name to max length
     field_name_padded = field_name.ljust(max_field_length)
-    
-    # Print progress bar
     sys.stdout.write(f'\r{field_name_padded} |{bar}\033[0m')
-    
-    # Flush output and print newline on completion
     sys.stdout.flush()
     if iteration == total:
         print()
@@ -88,7 +68,7 @@ class LASFileProcessor:
             wells_df, logs_df, las_df, tops_df = self.load_csv_files(field_folder_name)
             if wells_df.empty or logs_df.empty or las_df.empty or tops_df.empty:
                 error_message = f"Missing CSV files for field {field_folder_name}"
-                print(error_message)
+                #print(error_message)
                 self.log_error(field_folder_name, field_folder_name, error_message, "Missing CSV files.")
                 continue
 
@@ -106,7 +86,10 @@ class LASFileProcessor:
                     futures = {executor.submit(self.clean_and_save_las_file, las_file, final_destination_folder, wells_df, logs_df, tops_df, las_to_kid_map.get(las_file), field_folder_name): las_file for las_file in las_files}
                     for j, future in enumerate(as_completed(futures)):
                         las_file = futures[future]
-                        future.result()
+                        try:
+                            future.result()
+                        except Exception as e:
+                            self.log_error(field_folder_name, las_file, str(e), "Error processing LAS file.")
                         print_progress_bar(j + 1, len(las_files), field_folder_name, max_field_length)
 
         # Print the completion message after all fields are processed
@@ -167,6 +150,14 @@ class LASFileProcessor:
         # Create output path and write the cleaned LAS file
         output_file_name = f"{well_name}.las"
         output_path = os.path.join(destination_folder, output_file_name)
+
+        # Check if the file already exists and modify the name if necessary
+        counter = 1
+        while os.path.exists(output_path):
+            output_file_name = f"{well_name}_part{counter}.las"
+            output_path = os.path.join(destination_folder, output_file_name)
+            counter += 1
+
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         las.write(output_path, fmt='%.4f', column_fmt={0: '%.2f'}, mnemonics_header=True)
 
@@ -210,38 +201,22 @@ class LASFileProcessor:
         las.curves = standardized_curves
 
     def update_well_information(self, las, well_info, log_info):
-        """
-        Update the Well Information section of the LAS file with the data from the CSV.
-        """
-        # Define the required fields
         required_fields = [
-            # Well identification
             ('UWI', 'API'),
             ('WELL', 'WELL_NAME'),
-
-            # Location
             ('LAT', 'NAD27_LATITUDE'),
             ('LONG', 'NAD27_LONGITUDE'),
             ('LOC', 'LOCATION'),
-
-            # Field information
             ('FLD', 'FIELD_NAME'),
             ('CNTY', 'COUNTY'),
-
-            # Elevation information
             ('ELEV', 'ELEVATION'),
             ('EREF', 'ELEVATION_REFERENCE'),
-
-            # Company information
             ('COMP', 'CURR_OPERATOR'),
             ('LOGGER', 'LOGGER'),
-
-            # Formation and date
             ('FORM', 'PRODUCING_FORMATION'),
             ('DATE', 'LOG_DATE')
         ]
 
-        # Preserve the original mandatory fields or set defaults if not present
         mandatory_fields = {
             'STRT': las.well.get('STRT', lasio.HeaderItem(mnemonic='STRT', value='0.0', descr='')).value,
             'STOP': las.well.get('STOP', lasio.HeaderItem(mnemonic='STOP', value='0.0', descr='')).value,
@@ -249,19 +224,15 @@ class LASFileProcessor:
             'NULL': las.well.get('NULL', lasio.HeaderItem(mnemonic='NULL', value='-999.25', descr='')).value,
         }
 
-        # Add the mandatory fields
         for key, value in mandatory_fields.items():
             las.well[key] = lasio.HeaderItem(mnemonic=key, value=value, descr='')
 
-        # Get the existing well section items
         existing_well_items = list(las.well.keys())
 
-        # Remove any items not in the required or mandatory fields
         for item in existing_well_items:
             if item not in [field[0] for field in required_fields] and item not in mandatory_fields.keys():
                 del las.well[item]
 
-        # Add the required fields to the well section
         for las_key, df_key in required_fields:
             value = well_info.get(df_key) if df_key in well_info else log_info.get(df_key)
             if value is not None:
@@ -299,9 +270,6 @@ class LASFileProcessor:
             return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
     def map_las_files_to_kids(self, las_files, las_df, field_folder_name):
-        """
-        Map LAS files to their corresponding KID using the LAS CSV file.
-        """
         las_to_kid_map = {}
         for las_file in las_files:
             las_file_name = os.path.basename(las_file)
@@ -345,7 +313,7 @@ class LASFileProcessor:
         """
         Log errors during the processing of LAS files.
         """
-        error_log_path = os.path.join('../reports', '02_LAS_update_error_report.json')
+        error_log_path = os.path.join('reports', '02_LAS_update_error_report.json')
         os.makedirs(os.path.dirname(error_log_path), exist_ok=True)
 
         with self.lock:  # Ensure exclusive access to the error log file
@@ -387,44 +355,6 @@ class LASFileProcessor:
             kid_to_well_name[row['KID']] = f"{lease_name}_{well_name}"
         return kid_to_well_name
 
-    def merge_las_files_with_nan(self, las_files):
-        if not las_files:
-            return None
-
-        las_list = [lasio.read(las_file, engine='normal') for las_file in las_files]
-
-        # Find the common depth range
-        min_depth = min(las.index.min() for las in las_list)
-        max_depth = max(las.index.max() for las in las_list)
-
-        # Create a merged depth array
-        merged_depth = np.arange(min_depth, max_depth + 0.1, 0.1)  # Adjust step as needed
-
-        # Initialize a dictionary to hold merged data
-        merged_data = {curve.mnemonic: np.full(merged_depth.shape, np.nan) for las in las_list for curve in las.curves}
-
-        # Merge the data
-        for las in las_list:
-            for curve in las.curves:
-                mnemonic = curve.mnemonic
-                if mnemonic in merged_data:
-                    # Interpolate the data to the merged depth
-                    interpolated_data = np.interp(merged_depth, las.index, curve.data, left=np.nan, right=np.nan)
-                    # Combine the data, preferring non-NaN values from the new data
-                    nan_mask = np.isnan(merged_data[mnemonic])
-                    merged_data[mnemonic][nan_mask] = interpolated_data[nan_mask]
-
-        # Create a new LAS file for the merged data
-        merged_las = lasio.LASFile()
-        merged_las.set_data(np.column_stack([merged_depth] + [merged_data[curve] for curve in merged_data]))
-
-        # Add the curves to the merged LAS file
-        merged_las.curves = lasio.SectionItems()
-        for curve in merged_data:
-            merged_las.curves.append(lasio.CurveItem(mnemonic=curve, data=merged_data[curve]))
-
-        return merged_las
-
     def get_well_name(self, kid, wells_df):
         well_row = wells_df[wells_df['KID'] == kid]
         if well_row.empty:
@@ -447,6 +377,6 @@ class LASFileProcessor:
             kid_to_las_files_map[kid].append(las_file)
         return kid_to_las_files_map
 
-# # Example usage
+# 
 # processor = LASFileProcessor('data/v2.0_zip_files', 'data/v3.0_las_files', 'data/v1.0_raw_data')
 # processor.process_las_files()
