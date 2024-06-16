@@ -1,81 +1,89 @@
+import sys
+import os
+import io
 import ipywidgets as widgets
-from IPython.display import display, clear_output, HTML
-import folium
-from src.project_manager import ProjectManager
+from IPython.display import display, clear_output
+from src.project_manager import ProjectManager  # Import the ProjectManager class from the src.project_manager module
+
+class SuppressOutput:
+    """A context manager for suppressing stdout and stderr in UI."""
+    def __enter__(self):
+        self.original_stdout = sys.stdout
+        self.original_stderr = sys.stderr
+        sys.stdout = io.StringIO()
+        sys.stderr = io.StringIO()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        sys.stdout = self.original_stdout
+        sys.stderr = self.original_stderr
 
 def load_and_select_field_ui(project_manager):
-    # Using an HTML widget to create a styled and centered label
-    field_label = widgets.HTML(
-        value='<div style="background-color: lightblue; font-weight: bold; text-align: center; padding: 5px;">SELECT FIELD</div>',
-        layout=widgets.Layout(width='auto', margin='0 0 5px 0')
-    )
-    # Dropdown for field selection
+    # Create a dropdown widget for field selection
     field_selector = widgets.Dropdown(
         options=project_manager.load_fields(),
-        description='',
+        description='Fields:',
         disabled=False,
         layout=widgets.Layout(width='auto')
     )
 
-    # Button to load data
-    load_button = widgets.Button(description="Load Data", layout=widgets.Layout(width='auto'))
+    # Create a button to load wells
+    load_button = widgets.Button(
+        description="Load Wells",
+        button_style='primary',
+        layout=widgets.Layout(width='auto')
+    )
+
+    # Create an IntProgress widget to show the loading progress
+    progress_bar = widgets.IntProgress(
+        value=0,
+        min=0,
+        max=100,
+        step=1,
+        description='Loading:',
+        bar_style='info',
+        orientation='horizontal'
+    )
+
+    # Create an output area to display messages and information
     output_area = widgets.Output(layout=widgets.Layout(width='auto'))
 
-    # Creating a map centered on Kansas using OpenStreetMap tiles
-    m = folium.Map(location=[38.5, -98.0], zoom_start=7, tiles='OpenStreetMap')
-    map_html = m._repr_html_()  # Get HTML representation of the map
-    map_widget = widgets.HTML(value=map_html, layout=widgets.Layout(height='550px', width='auto'))
-
     def on_load_button_clicked(b):
-        with output_area:
-            clear_output(wait=True)
-            if field_selector.value:
-                project = project_manager.load_selected_field(field_selector.value)
-                if project:
-                    print(f"Field: {field_selector.value}")
-                    print(f"Loaded {len(project)} wells.")
+        output_area.clear_output()  # Clear previous output
+        project_manager.selected_field = field_selector.value
+        if project_manager.selected_field:
+            # print(f"Selected field: {project_manager.selected_field}")
+            try:
+                las_files = project_manager.las_file_list()
+                progress_bar.max = len(las_files)
+                progress_bar.value = 0
 
-                    # Get well locations and plot on the map
-                    well_locations = []
-                    for well in project:
-                        if 'NAD27_LATITUDE' in well.location and 'NAD27_LONGITUDE' in well.location:
-                            lat = well.location['NAD27_LATITUDE']
-                            lon = well.location['NAD27_LONGITUDE']
-                            well_locations.append((lat, lon))
-                            folium.Marker(location=(lat, lon), popup=well.name).add_to(m)
+                def progress_callback(current, total):
+                    progress_bar.value = current
+                    progress_bar.description = f'Loading: {current}/{total}'
 
-                    # Plot the field area on the map
-                    field_description = project_manager.field_descriptions.get(field_selector.value, {})
-                    for township, sections in field_description.items():
-                        for section in sections:
-                            # This is a placeholder; you need to convert sections to coordinates
-                            # Example: folium.Polygon(locations=[(lat1, lon1), (lat2, lon2), ...], color='blue').add_to(m)
-                            pass
+                with SuppressOutput():
+                    project_manager.load_selected_field(progress_callback)
 
-                    map_html = m._repr_html_()
-                    map_widget.value = map_html
-                else:
-                    print("Failed to load data. Check the LAS files in the selected field.")
-            else:
-                print("No field selected. Please select a field.")
+                # print(f"Loaded {len(project_manager.project)} wells in {project_manager.selected_field}.")
+            except Exception as e:
+                print(f"Error loading wells: {e}")
+        else:
+            print("No field selected. Please select a field.")
 
     load_button.on_click(on_load_button_clicked)
 
-    # VBox for the left sidebar elements
-    left_sidebar = widgets.VBox([
-        field_label,
+    # Layout for the UI
+    ui = widgets.VBox([
         field_selector,
         load_button,
+        progress_bar,
         output_area
-    ], layout=widgets.Layout(padding='10px', width='auto', overflow='hidden'))
+    ], layout=widgets.Layout(padding='10px', width='auto'))
 
-    # Layout using AppLayout
-    app_layout = widgets.AppLayout(
-        left_sidebar=left_sidebar,
-        center=map_widget,
-        pane_widths=['300px', 1, 0],  # Adjust the width of the left pane
-        pane_heights=['100px', 5, '100px'],
-        grid_gap='15px'  # Adds space between the left and right sides
-    )
+    display(ui)
 
-    display(app_layout)
+# # Example usage
+# base_directory = '../data/v3.0_las_files'
+# project_manager = ProjectManager(base_directory)
+# load_and_select_field_ui(project_manager)

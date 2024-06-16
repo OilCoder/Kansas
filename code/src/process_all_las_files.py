@@ -1,4 +1,5 @@
 import os
+import re
 import zipfile
 import lasio
 import tempfile
@@ -95,7 +96,7 @@ class LASFileProcessor:
         # Print the completion message after all fields are processed
         blue = '\033[94m'
         reset = '\033[0m'
-        error_report_file = Path('reports/02_LAS_update_error_report.json')
+        error_report_file = Path('../reports/02_LAS_update_error_report.json')
         print(f"LAS file processing completed. Please check '{blue}{error_report_file}{reset}' for details.")
 
     def clean_and_save_las_file(self, las_file_path, destination_folder, wells_df, logs_df, tops_df, kid, field_name):
@@ -119,7 +120,7 @@ class LASFileProcessor:
             return
 
         # Standardize curve information
-        self.standardize_curve_information(las)
+        las = self.standardize_curve_information(las)
 
         # Update the well section
         las = self.update_well_information(las, well_info, log_info)
@@ -199,11 +200,13 @@ class LASFileProcessor:
                     curve.mnemonic, curve.unit = curve.mnemonic.split(' ', 1)
             standardized_curves.append(curve)
         las.curves = standardized_curves
+        return las
 
     def update_well_information(self, las, well_info, log_info):
         required_fields = [
             ('UWI', 'API'),
             ('WELL', 'WELL_NAME'),
+            ('LEASE', 'LEASE'),
             ('LAT', 'NAD27_LATITUDE'),
             ('LONG', 'NAD27_LONGITUDE'),
             ('LOC', 'LOCATION'),
@@ -313,7 +316,7 @@ class LASFileProcessor:
         """
         Log errors during the processing of LAS files.
         """
-        error_log_path = os.path.join('reports', '02_LAS_update_error_report.json')
+        error_log_path = os.path.join('../reports', '02_LAS_update_error_report.json')
         os.makedirs(os.path.dirname(error_log_path), exist_ok=True)
 
         with self.lock:  # Ensure exclusive access to the error log file
@@ -377,6 +380,6 @@ class LASFileProcessor:
             kid_to_las_files_map[kid].append(las_file)
         return kid_to_las_files_map
 
-# 
+# # Example of use
 # processor = LASFileProcessor('data/v2.0_zip_files', 'data/v3.0_las_files', 'data/v1.0_raw_data')
 # processor.process_las_files()

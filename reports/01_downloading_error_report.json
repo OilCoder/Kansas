@@ -7,16 +7,16 @@
     ],
     "Marcotte": [
         {
-            "LASFILE": "1053379212",
-            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053379212.zip: HTTP Error 404: Not Found"
+            "LASFILE": "1053376142",
+            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053376142.zip: HTTP Error 404: Not Found"
         },
         {
             "LASFILE": "1053376630",
             "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053376630.zip: HTTP Error 404: Not Found"
         },
         {
-            "LASFILE": "1053376142",
-            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053376142.zip: HTTP Error 404: Not Found"
+            "LASFILE": "1053379212",
+            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053379212.zip: HTTP Error 404: Not Found"
         },
         {
             "LASFILE": "1053377099",
@@ -27,56 +27,30 @@
             "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053376582.zip: HTTP Error 404: Not Found"
         },
         {
-            "LASFILE": "1053377661",
-            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053377661.zip: HTTP Error 404: Not Found"
-        },
-        {
             "LASFILE": "1053428710",
             "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053428710.zip: HTTP Error 404: Not Found"
-        }
-    ],
-    "KraftPrusa": [
-        {
-            "LASFILE": "1053429293",
-            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053429293.zip: HTTP Error 404: Not Found"
         },
         {
-            "LASFILE": "1053378270",
-            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053378270.zip: HTTP Error 404: Not Found"
-        },
-        {
-            "LASFILE": "1053429311",
-            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053429311.zip: HTTP Error 404: Not Found"
-        },
-        {
-            "LASFILE": "1053376683",
-            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053376683.zip: HTTP Error 404: Not Found"
-        },
-        {
-            "LASFILE": "1053377869",
-            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053377869.zip: HTTP Error 404: Not Found"
-        },
-        {
-            "LASFILE": "1053377596",
-            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053377596.zip: HTTP Error 404: Not Found"
+            "LASFILE": "1053377661",
+            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053377661.zip: HTTP Error 404: Not Found"
         }
     ],
     "Burrton": [
         {
-            "LASFILE": "1053378526",
-            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053378526.zip: HTTP Error 404: Not Found"
-        },
-        {
             "LASFILE": "1053376900",
             "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053376900.zip: HTTP Error 404: Not Found"
+        },
+        {
+            "LASFILE": "1053377049",
+            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053377049.zip: HTTP Error 404: Not Found"
         },
         {
             "LASFILE": "1053378540",
             "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053378540.zip: HTTP Error 404: Not Found"
         },
         {
-            "LASFILE": "1053377049",
-            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053377049.zip: HTTP Error 404: Not Found"
+            "LASFILE": "1053378526",
+            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053378526.zip: HTTP Error 404: Not Found"
         },
         {
             "LASFILE": "1053376457",
@@ -87,7 +61,49 @@
             "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053579809.zip: HTTP Error 404: Not Found"
         }
     ],
-    "BemisShutts": [
+    "Kraft Prusa": [
+        {
+            "LASFILE": "1053378270",
+            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053378270.zip: HTTP Error 404: Not Found"
+        },
+        {
+            "LASFILE": "1053429293",
+            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053429293.zip: HTTP Error 404: Not Found"
+        },
+        {
+            "LASFILE": "1053429311",
+            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053429311.zip: HTTP Error 404: Not Found"
+        },
+        {
+            "LASFILE": "1053377596",
+            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053377596.zip: HTTP Error 404: Not Found"
+        },
+        {
+            "LASFILE": "1053377869",
+            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053377869.zip: HTTP Error 404: Not Found"
+        },
+        {
+            "LASFILE": "1053376683",
+            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053376683.zip: HTTP Error 404: Not Found"
+        }
+    ],
+    "El Dorado": [
+        {
+            "LASFILE": "1053376752",
+            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053376752.zip: HTTP Error 404: Not Found"
+        }
+    ],
+    "Webster": [
+        {
+            "LASFILE": "1053428959",
+            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053428959.zip: HTTP Error 404: Not Found"
+        },
+        {
+            "LASFILE": "1053429007",
+            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053429007.zip: HTTP Error 404: Not Found"
+        }
+    ],
+    "Bemis Shutts": [
         {
             "LASFILE": "1053377341",
             "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053377341.zip: HTTP Error 404: Not Found"
@@ -97,10 +113,24 @@
             "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053377025.zip: HTTP Error 404: Not Found"
         }
     ],
-    "BradshawGasArea": [
+    "Cooper": [
+        {
+            "LASFILE": "1053579987",
+            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053579987.zip: HTTP Error 404: Not Found"
+        },
+        {
+            "LASFILE": "1053580129",
+            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053580129.zip: HTTP Error 404: Not Found"
+        }
+    ],
+    "Bradshaw Gas Area": [
         {
             "LASFILE": "1053378017",
             "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053378017.zip: HTTP Error 404: Not Found"
+        },
+        {
+            "LASFILE": "1053377966",
+            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053377966.zip: HTTP Error 404: Not Found"
         },
         {
             "LASFILE": "1053378338",
@@ -109,10 +139,6 @@
         {
             "LASFILE": "1053378057",
             "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053378057.zip: HTTP Error 404: Not Found"
-        },
-        {
-            "LASFILE": "1053377966",
-            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053377966.zip: HTTP Error 404: Not Found"
         },
         {
             "LASFILE": "1053378311",
@@ -129,32 +155,6 @@
         {
             "LASFILE": "1053378049",
             "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053378049.zip: HTTP Error 404: Not Found"
-        }
-    ],
-    "Webster": [
-        {
-            "LASFILE": "1053429007",
-            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053429007.zip: HTTP Error 404: Not Found"
-        },
-        {
-            "LASFILE": "1053428959",
-            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053428959.zip: HTTP Error 404: Not Found"
-        }
-    ],
-    "ElDorado": [
-        {
-            "LASFILE": "1053376752",
-            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053376752.zip: HTTP Error 404: Not Found"
-        }
-    ],
-    "Cooper": [
-        {
-            "LASFILE": "1053579987",
-            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053579987.zip: HTTP Error 404: Not Found"
-        },
-        {
-            "LASFILE": "1053580129",
-            "Error": "Error downloading http://www.kgs.ku.edu/WellLogs/kcc_logs_2023/1053580129.zip: HTTP Error 404: Not Found"
         }
     ]
 }

@@ -19,6 +19,7 @@ import scipy
 import matplotlib.pyplot as plt
 
 # region LASIO Supress stdout
+# SuppressOutput context manager
 class SuppressOutput:
     """A context manager for suppressing stdout and stderr."""
     def __enter__(self):
@@ -29,6 +30,8 @@ class SuppressOutput:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        self.original_stdout = sys.stdout
+        self.original_stderr = self.original_stderr
         sys.stdout = self.original_stdout
         sys.stderr = self.original_stderr
 
@@ -38,73 +41,62 @@ class ProjectManager:
         self.base_directory = base_directory
         self.fields = self.load_fields()
         self.selected_field = None
-        self.curves = []
-        self.selected_curves = []
-        self.well_data = {}
         self.project = None
+        self.unique_curves = []
+        self.selected_curves = []
+        self.standardized_curve_mapping = {}  
         self.curve_descriptions = []
+        self.well_data = {}
         self.field_stats = {}
         self.well_stats = {}
 
     # region path_las_file_list
     def las_file_list(self):
         """
-        Generates a list of paths to LAS files within all subdirectories of the base directory.
+        Generates a list of paths to LAS files within the selected field directory.
+
+        Args:
+            selected_field (str): The name of the selected field.
 
         Returns:
             list: A list of paths to LAS files.
         """
-        las_files = []
-        for root, dirs, files in os.walk(self.base_directory):
-            for file in files:
-                if file.endswith('.las'):
-                    las_files.append(os.path.join(root, file))
+        field_path = os.path.join(self.base_directory, self.selected_field)
+        las_files = [os.path.join(field_path, file) for file in os.listdir(field_path) if file.endswith('.las')]
         return las_files
-
 
     # region Load ans Select field
     ########## --- ipwidget - load_and_select_field / widgets.py --- ##########
     def load_fields(self):
-        """
-        Load a list of available fields from the base directory.
-        """
         return [name for name in os.listdir(self.base_directory) if os.path.isdir(os.path.join(self.base_directory, name))]
-    
-    import psutil
-    def load_selected_field(self, selected_field):
-        """
-        Lazily loads the wells in a Welly Project object for the selected field from the base directory, 
-        while monitoring memory usage to prevent overload.
-        """
-        self.selected_field = selected_field
 
-        if self.selected_field:
-            field_path = os.path.join(self.base_directory, self.selected_field)
-            las_files = glob.glob(os.path.join(field_path, '*.las'))
-            valid_las_files = []
-            for las_file in las_files:
-                try:
-                    welly_project = welly.Project.from_las([las_file], engine='normal')
-                    valid_las_files.append(las_file)
-                except Exception as e:
-                    pass
-                    # print(f"Error loading {las_file}: {e}")
-            self.project = welly.Project.from_las(valid_las_files)
-            return self.project
-        else:
-            print("No field has been selected.")
-            return None
+    def load_selected_field(self, progress_callback=None):
+        """
+        Loads wells for the selected field into a Welly Project.
+        
+        Returns:
+            project: A Welly Project object containing the loaded wells.
+        """
+        if not self.selected_field:
+            raise ValueError("No field selected. Please set the selected_field attribute.")
+        
+        las_files = self.las_file_list()
+        wells = []
+        for i, las_file in enumerate(las_files):
+            wells.append(welly.Well.from_las(las_file))
+            if progress_callback:
+                progress_callback(i + 1, len(las_files))
+        self.project = welly.Project(wells)
+        return self.project
 
     # region Filtering curves
     ########## --- ipwidget - load_and_select_curves / widgets.py--- ##########
-    def get_unique_curves(self, selected_field):
+    def get_unique_curves(self):
         """
-        Fetches all unique curves available for a given field from the loaded project.
+        Fetches all unique curves available for the current project.
         
-        :param selected_field: The name of the field to load curves for
-        :return: A list of unique curves available in the field
+        :return: A list of unique curves available in the project
         """
-
         if not self.project:
             print("Project not loaded. Please load the project first.")
             return []
@@ -113,10 +105,9 @@ class ProjectManager:
         for well in self.project:
             unique_curves.update(well.data.keys())
 
-        #print(f"Unique curves in field {selected_field}: {unique_curves}")
-        self.curves = list(unique_curves)
-
-        return list(unique_curves)
+        self.unique_curves = list(unique_curves)
+        return self.unique_curves
+    
     def update_selected_curves(self, selected_curves):
         """
         Updates the selected curves based on user input from the widget.
@@ -140,21 +131,24 @@ class ProjectManager:
         
     def get_curve_descriptions(self):
         """
-        Retrieves descriptions for each unique curve in the project as a list.
+        Retrieves descriptions for each unique curve in the project as a dictionary.
         """
-        curve_descriptions = []
+        curve_descriptions = {}
         if not self.project:
             print("Project not loaded. Please load the project first.")
-            return curve_descriptions
+            return {}
 
         for well in self.project:
+            lease_name = well.header.loc[well.header['mnemonic'] == 'LEASE', 'value'].values[0]
             header_df = well.header
             curve_info = header_df[header_df['section'] == 'Curves']
             for _, row in curve_info.iterrows():
                 curve_name = row['mnemonic']
-                description = row['value']
-                if not any(d['name'] == curve_name for d in curve_descriptions):
-                    curve_descriptions.append({'name': curve_name, 'description': description})
+                description = row['descr'] if row['descr'] else row['value'] if row['value'] else row['unit']
+                if curve_name not in curve_descriptions:
+                    curve_descriptions[curve_name] = {}
+                curve_descriptions[curve_name][lease_name] = description
+
         self.curve_descriptions = curve_descriptions
         return self.curve_descriptions
     
@@ -230,6 +224,7 @@ class ProjectManager:
         self.field_stats = field_stats
         self.well_stats = well_stats
         return {'Field': field_stats, 'Wells': well_stats}
+
 
 # def analyze_and_interpolate_completeness_data(project_manager):
 #     """

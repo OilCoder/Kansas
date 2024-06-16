@@ -1,6 +1,13 @@
 # Ignore everything in the data directory
 data/*
 
+# But, do not ignore these specific folders
+!data/v1.0_raw_data/Morel/
+!data/v1.0_raw_data/Kraft Prusa/
+!data/v1.0_raw_data/Arroyo/
+!data/v1.0_raw_data/Burrton/
+!data/v1.0_raw_data/Cooper/
+
 # Ignore everything in images and vscode directories
 images/
 .vscode/
@@ -8,3 +15,13 @@ code/txt_filtres/
 
 # Ignore log files
 *.log
+
+# Ignore everything in the zip_files directory
+zip_files/*
+
+# But, do not ignore these specific zip files
+!zip_files/Morel.zip
+!zip_files/Kraft-Prusa.zip
+!zip_files/Arroyo.zip
+!zip_files/Burrton.zip
+!zip_files/Cooper.zip
