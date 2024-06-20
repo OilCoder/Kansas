@@ -187,25 +187,26 @@ class ProjectManager:
                     'variance': np.var(filtered_data),
                     'skewness': scipy.stats.skew(filtered_data),
                     'kurtosis': scipy.stats.kurtosis(filtered_data),
-                    'iqr': np.percentile(filtered_data, 75) - np.percentile(filtered_data, 25),
-                    'mad': np.median(np.absolute(filtered_data - np.median(filtered_data))),
-                    'cv': np.std(filtered_data) / np.mean(filtered_data) if np.mean(filtered_data) != 0 else np.nan,
+                    'IQR': np.percentile(filtered_data, 75) - np.percentile(filtered_data, 25),
+                    'MAD': np.median(np.absolute(filtered_data - np.median(filtered_data))),
+                    'CV': np.std(filtered_data) / np.mean(filtered_data) if np.mean(filtered_data) != 0 else np.nan,
                     'percentile25': np.percentile(filtered_data, 25),
                     'percentile75': np.percentile(filtered_data, 75),
                 }
             else:
-                field_stats[curve_name] = {stat: np.nan for stat in ['mean', 'median', 'mode', 'std_dev', 'range', 'variance', 'skewness', 'kurtosis', 'iqr', 'mad', 'cv', 'percentile25', 'percentile75']}
+                field_stats[curve_name] = {stat: np.nan for stat in ['mean', 'median', 'mode', 'std_dev', 'range', 'variance', 'skewness', 'kurtosis', 'IQR', 'MAD', 'CV', 'percentile25', 'percentile75']}
 
         # Statistics for each well
         for well in self.project:
-            well_stats[well.name] = {}
+            lease_name = well.header.loc[well.header['mnemonic'] == 'LEASE', 'value'].values[0]
+            well_stats[lease_name] = {}
             for curve_name in self.selected_curves:
                 if curve_name in well.data and well.data[curve_name]:
                     curve_data = well.data[curve_name].values
                     # Filter data based on valid range
                     filtered_data = curve_data[(curve_data >= valid_range[0]) & (curve_data <= valid_range[1])]
                     if filtered_data.size > 0:
-                        well_stats[well.name][curve_name] = {
+                        well_stats[lease_name][curve_name] = {
                             'mean': np.mean(filtered_data),
                             'median': np.median(filtered_data),
                             'mode': pd.Series(filtered_data).mode()[0] if not pd.Series(filtered_data).mode().empty else np.nan,
@@ -214,9 +215,9 @@ class ProjectManager:
                             'variance': np.var(filtered_data),
                             'skewness': scipy.stats.skew(filtered_data),
                             'kurtosis': scipy.stats.kurtosis(filtered_data),
-                            'iqr': np.percentile(filtered_data, 75) - np.percentile(filtered_data, 25),
-                            'mad': np.median(np.absolute(filtered_data - np.median(filtered_data))),
-                            'cv': np.std(filtered_data) / np.mean(filtered_data) if np.mean(filtered_data) != 0 else np.nan,
+                            'IQR': np.percentile(filtered_data, 75) - np.percentile(filtered_data, 25),
+                            'MAD': np.median(np.absolute(filtered_data - np.median(filtered_data))),
+                            'CV': np.std(filtered_data) / np.mean(filtered_data) if np.mean(filtered_data) != 0 else np.nan,
                             'percentile25': np.percentile(filtered_data, 25),
                             'percentile75': np.percentile(filtered_data, 75),
                         }
@@ -224,7 +225,6 @@ class ProjectManager:
         self.field_stats = field_stats
         self.well_stats = well_stats
         return {'Field': field_stats, 'Wells': well_stats}
-
 
 # def analyze_and_interpolate_completeness_data(project_manager):
 #     """
