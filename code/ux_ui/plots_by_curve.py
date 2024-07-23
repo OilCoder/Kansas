@@ -62,7 +62,7 @@ def plot_histogram_and_density(data, curve_name, well_names, ax=None, save_path=
         if save_path:
             fig.patch.set_facecolor('white')
             ax_hist.set_facecolor('white')
-            plt.savefig(save_path, facecolor=fig.get_facecolor(), edgecolor='none')
+            plt.savefig(save_path, facecolor=fig.get_facecolor(), edgecolor='none', bbox_inches='tight')
             plt.close()
         else:
             plt.show()
@@ -109,9 +109,9 @@ def plot_combined_violin_box(data, curve_name, well_names, ax=None, save_path=No
         plt.tight_layout(rect=[0, 0, 0.85, 1])
         plt.subplots_adjust(hspace=0.1)
         if save_path:
-            fig.patch.set_facecolor('white')
+            fig.patch.set_facecolor('white', )
             ax_violin.set_facecolor('white')
-            plt.savefig(save_path, facecolor=fig.get_facecolor(), edgecolor='none')
+            plt.savefig(save_path, facecolor=fig.get_facecolor(), edgecolor='none', bbox_inches='tight')
             plt.close()
         else:
             plt.show()
