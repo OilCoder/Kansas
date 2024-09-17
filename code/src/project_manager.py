@@ -17,6 +17,11 @@ import numpy as np
 import pandas as pd
 import scipy
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy import stats
+from sklearn.ensemble import IsolationForest
+from sklearn.cluster import DBSCAN
+
 
 # region LASIO Supress stdout
 # SuppressOutput context manager
@@ -49,6 +54,9 @@ class ProjectManager:
         self.well_data = {}
         self.field_stats = {}
         self.well_stats = {}
+        self.formation_data = {}  
+        self.outliers = {}
+        self.original_well_data = {}
 
     # region path_las_file_list
     def las_file_list(self):
@@ -72,7 +80,7 @@ class ProjectManager:
 
     def load_selected_field(self, progress_callback=None):
         """
-        Loads wells for the selected field into a Welly Project.
+        Loads wells for the selected field into a Welly Project and extracts formation data.
         
         Returns:
             project: A Welly Project object containing the loaded wells.
@@ -83,11 +91,96 @@ class ProjectManager:
         las_files = self.las_file_list()
         wells = []
         for i, las_file in enumerate(las_files):
-            wells.append(welly.Well.from_las(las_file))
+            well = welly.Well.from_las(las_file)
+            wells.append(well)
+            
+            # Extract formation data from the ~Other section
+            self.extract_formation_data(well, las_file)
+            
             if progress_callback:
                 progress_callback(i + 1, len(las_files))
+        
         self.project = welly.Project(wells)
         return self.project
+
+    def extract_formation_data(self, well, las_file):
+        """
+        Extracts formation data from the ~Other section of the LAS file and prepares it for well logging plots.
+        
+        Args:
+            well (welly.Well): The well object.
+            las_file (str): Path to the LAS file.
+            
+        Returns:
+            dict: A dictionary containing formation data for each well, formatted for plotting.
+                The structure is {well_name: [(top_depth, base_depth, formation_name), ...]}
+        """
+        well_name = well.header.loc[well.header['mnemonic'] == 'LEASE', 'value'].values[0]
+        self.formation_data[well_name] = []
+        
+        # Extract formation data from the ~Other section of the LAS file
+        with open(las_file, 'r') as file:
+            other_section = False
+            for line in file:
+                if line.strip().startswith('~Other'):
+                    other_section = True
+                    continue
+                if other_section and line.strip().startswith('~'):
+                    break
+                if other_section and line.strip():
+                    parts = line.strip().split(',')
+                    if len(parts) == 3 and parts[0].lower() != 'base':  # Skip header line
+                        base, top, formation = parts
+                        base = float(base) if base.lower() != 'nan' else None
+                        top = float(top) if top.lower() != 'nan' else None
+                        if top is not None:  # Ensure we have at least a top depth
+                            self.formation_data[well_name].append({
+                                'formation': formation.strip(),
+                                'top': top,
+                                'base': base
+                            })
+        
+        # Sort formations by top depth
+        self.formation_data[well_name].sort(key=lambda x: x['top'])
+        
+        # Prepare the formation data for plotting and fill missing base depths
+        formation_data = {}
+        start_depth = well.header.loc[well.header['mnemonic'] == 'STRT', 'value'].values[0]
+        stop_depth = well.header.loc[well.header['mnemonic'] == 'STOP', 'value'].values[0]
+        
+        # Initialize the formation data for the current well
+        formation_data[well_name] = []
+        
+        formations = self.formation_data[well_name]
+        
+        # Fill missing base depths
+        for i, formation in enumerate(formations):
+            formation_name = formation['formation']
+            top_depth = formation['top']
+            
+            # Handle missing base depths
+            if formation['base'] is not None:
+                base_depth = formation['base']
+            elif i < len(formations) - 1:
+                # If no base depth, use the next formation's top depth
+                base_depth = formations[i + 1]['top']
+            else:
+                # If this is the last formation, use the stop depth of the well
+                base_depth = stop_depth
+            
+            # Add the formation data
+            formation_data[well_name].append((top_depth, base_depth, formation_name))
+        
+        # Add top layer if necessary
+        if formations and formations[0]['top'] > start_depth:
+            formation_data[well_name].insert(0, (start_depth, formations[0]['top'], 'Unknown'))
+        
+        # Sort formations by top depth
+        formation_data[well_name].sort(key=lambda x: x[0])
+        
+        # Update the formation_data attribute and return the result
+        self.formation_data[well_name] = formation_data[well_name]
+        return formation_data
 
     # region Filtering curves
     ########## --- ipwidget - load_and_select_curves / widgets.py--- ##########
@@ -226,64 +319,246 @@ class ProjectManager:
         self.well_stats = well_stats
         return {'Field': field_stats, 'Wells': well_stats}
 
-# def analyze_and_interpolate_completeness_data(project_manager):
-#     """
-#     Analyzes the completeness of data and interpolates missing data in the selected curves.
-#     Additionally, identifies where data is missing.
+# region Outliers
 
-#         This function uses various techniques to complete missing data, including:
+    def apply_method(self, method, data, **kwargs):
+        """
+        Applies a specific outlier detection method to the data.
         
-#         * Linear interpolation: fills gaps between known values
-#         * Polynomial interpolation: fills gaps using a polynomial of a specified degree
-#         * Kriging: geostatistical interpolation to predict values at unobserved locations
-#         * Linear regression: fills gaps using a linear regression with predictor variables
-#         * Mean imputation: fills gaps with the mean value of known data in the same field or well
-#         * Mode imputation: fills gaps with the mode value of known data in the same field or well
-#         * k-NN (k-Nearest Neighbors) imputation: fills gaps using the k nearest neighbors in feature space
+        Args:
+            method (str): The method to apply.
+            data (array-like): The data array.
+            **kwargs: Method-specific parameters.
+        
+        Returns:
+            list: Indices of detected outliers.
+        """
+        if method == 'z_score':
+            return self.detect_z_score_outliers(data, threshold=kwargs.get('threshold', 3.0))
+        elif method == 'modified_z_score':
+            return self.detect_modified_z_score_outliers(data, threshold=kwargs.get('threshold', 3.5))
+        elif method == 'iqr':
+            return self.detect_iqr_outliers(data, factor=kwargs.get('factor', 1.5))
+        elif method == 'isolation_forest':
+            return self.detect_isolation_forest_outliers(data, contamination=kwargs.get('contamination', 0.01))
+        elif method == 'dbscan':
+            return self.detect_dbscan_outliers(data, eps=kwargs.get('eps', 0.5), min_samples=kwargs.get('min_samples', 5))
+        elif method == 'threshold_based':
+            return self.detect_threshold_outliers(data, lower=kwargs.get('lower'), upper=kwargs.get('upper'))
+        else:
+            raise ValueError(f"Unsupported outlier detection method: {method}")
+
+    def detect_all_outliers(self, methods=None, curves=None, **kwargs):
+        if methods is None:
+            methods = ['z_score', 'modified_z_score', 'iqr', 'isolation_forest', 'dbscan', 'threshold_based']
+        
+        if curves is None:
+            curves = self.selected_curves
+        
+        # Initialize the outliers dictionary
+        self.outliers = {method: {} for method in methods}
+        
+        for method in methods:
+            print(f"Applying method: {method}")
+            for well in self.project:
+                well_name = well.name
+                if well_name not in self.outliers[method]:
+                    self.outliers[method][well_name] = {}
+                
+                for curve in curves:
+                    if curve in well.data:
+                        data = well.data[curve].values
+                        print(f"Processing Well: {well_name}, Curve: {curve}")
+                        # Retrieve method-specific parameters if provided
+                        method_params = kwargs.get(method, {})
+                        outlier_indices = self.apply_method(method, data, **method_params)
+                        self.outliers[method][well_name][curve] = outlier_indices
+                        print(f"Detected {len(outlier_indices)} outliers using {method} for Well: {well_name}, Curve: {curve}")
+        
+        return self.outliers
+
+    def detect_z_score_outliers(self, data, threshold=3.0):
+        """
+        Detects outliers using the Z-Score method.
+
+        Args:
+            data (array-like): The data array.
+            threshold (float): The Z-Score threshold to identify outliers.
+
+        Returns:
+            list: Indices of detected outliers.
+        """
+        if len(data) == 0:
+            return []
+        
+        # Handle NaN values by ignoring them
+        mask = ~np.isnan(data)
+        clean_data = data[mask]
+        
+        if len(clean_data) == 0:
+            return []
+        
+        z_scores = np.abs(stats.zscore(clean_data))
+        outlier_mask = z_scores > threshold
+        outlier_indices = np.where(mask)[0][outlier_mask]
+        
+        return outlier_indices.tolist()
     
-#     :return: A dictionary containing completeness metrics, interpolated data, and missing data locations.
-#     """
-#     results = {}
-#     valid_range = (-1000, 200)  # Define valid data range
+    def detect_modified_z_score_outliers(self, data, threshold=3.5):
+        """
+        Detects outliers using the Modified Z-Score method.
 
-#     for well in project_manager.project:
-#         results[well.name] = {}  # Initialize a dictionary for each well
-#         for curve_name in project_manager.selected_curves:
-#             if curve_name in well.data:
-#                 curve_data = well.data[curve_name].values
-#                 x = np.arange(len(curve_data))
-                
-#                 # Identify valid and missing data
-#                 is_valid = (curve_data > valid_range[0]) & (curve_data < valid_range[1])
-#                 is_missing = ~is_valid
-                
-#                 # Store indices of missing data
-#                 missing_indices = np.where(is_missing)[0]
-                
-#                 # Initialize the curve dictionary with missing indices and an empty interpolations dictionary
-#                 results[well.name][curve_name] = {
-#                     'missing_indices': missing_indices.tolist(),
-#                     'interpolations': {}
-#                 }
-                
-#                 # Filter valid data for interpolation
-#                 valid_x = x[is_valid]
-#                 valid_y = curve_data[is_valid]
-                
-#                 if len(valid_x) > 1:  # Ensure there are at least two points to interpolate
-#                     # Linear interpolation
-#                     linear_interpolator = interpolate.interp1d(valid_x, valid_y, bounds_error=False, fill_value="extrapolate")
-#                     results[well.name][curve_name]['interpolations']['linear'] = linear_interpolator(x)
+        Args:
+            data (array-like): The data array.
+            threshold (float): The Modified Z-Score threshold to identify outliers.
 
-#                     # Polynomial interpolation
-#                     if len(valid_x) > 3:
-#                         poly_interpolator = np.poly1d(np.polyfit(valid_x, valid_y, deg=3))
-#                         results[well.name][curve_name]['interpolations']['polynomial'] = poly_interpolator(x)
+        Returns:
+            list: Indices of detected outliers.
+        """
+        if len(data) == 0:
+            return []
+        
+        # Handle NaN values by ignoring them
+        mask = ~np.isnan(data)
+        clean_data = data[mask]
+        
+        if len(clean_data) == 0:
+            return []
+        
+        median = np.median(clean_data)
+        mad = np.median(np.abs(clean_data - median))
+        if mad == 0:
+            return []
+        
+        modified_z_scores = 0.6745 * (clean_data - median) / mad
+        outlier_mask = np.abs(modified_z_scores) > threshold
+        outlier_indices = np.where(mask)[0][outlier_mask]
+        
+        return outlier_indices.tolist()
+    
+    def detect_iqr_outliers(self, data, factor=1.5):
+        """
+        Detects outliers using the Interquartile Range (IQR) method.
 
-#                     # Additional interpolation methods can be added here
+        Args:
+            data (array-like): The data array.
+            factor (float): The IQR multiplier to define outlier thresholds.
 
-#     return results
+        Returns:
+            list: Indices of detected outliers.
+        """
+        if len(data) == 0:
+            return []
+        
+        # Handle NaN values by ignoring them
+        mask = ~np.isnan(data)
+        clean_data = data[mask]
+        
+        if len(clean_data) == 0:
+            return []
+        
+        Q1 = np.percentile(clean_data, 25)
+        Q3 = np.percentile(clean_data, 75)
+        IQR = Q3 - Q1
+        lower_bound = Q1 - factor * IQR
+        upper_bound = Q3 + factor * IQR
+        
+        outlier_mask = (clean_data < lower_bound) | (clean_data > upper_bound)
+        outlier_indices = np.where(mask)[0][outlier_mask]
+        
+        return outlier_indices.tolist()
+    
+    def detect_isolation_forest_outliers(self, data, contamination=0.01):
+        """
+        Detects outliers using the Isolation Forest method.
 
+        Args:
+            data (array-like): The data array.
+            contamination (float): The proportion of outliers in the data set.
 
+        Returns:
+            list: Indices of detected outliers.
+        """
+        if len(data) == 0:
+            return []
+        
+        # Handle NaN values by ignoring them
+        mask = ~np.isnan(data)
+        clean_data = data[mask].reshape(-1, 1)
+        
+        if len(clean_data) == 0:
+            return []
+        
+        iso_forest = IsolationForest(contamination=contamination, random_state=42)
+        preds = iso_forest.fit_predict(clean_data)
+        outlier_mask = preds == -1
+        outlier_indices = np.where(mask)[0][outlier_mask]
+        
+        return outlier_indices.tolist()
+    
+    def detect_dbscan_outliers(self, data, eps=0.5, min_samples=5):
+        """
+        Detects outliers using the DBSCAN clustering method.
 
+        Args:
+            data (array-like): The data array.
+            eps (float): The maximum distance between two samples for one to be considered as in the neighborhood of the other.
+            min_samples (int): The number of samples in a neighborhood for a point to be considered as a core point.
 
+        Returns:
+            list: Indices of detected outliers.
+        """
+        if len(data) == 0:
+            return []
+        
+        # Handle NaN values by ignoring them
+        mask = ~np.isnan(data)
+        clean_data = data[mask].reshape(-1, 1)
+        
+        if len(clean_data) == 0:
+            return []
+        
+        dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+        labels = dbscan.fit_predict(clean_data)
+        # In DBSCAN, -1 label is for noise points
+        outlier_mask = labels == -1
+        outlier_indices = np.where(mask)[0][outlier_mask]
+        
+        return outlier_indices.tolist()
+
+    def detect_threshold_outliers(self, data, lower=None, upper=None):
+        """
+        Detects outliers based on user-defined lower and/or upper thresholds.
+
+        Args:
+            data (array-like): The data array.
+            lower (float, optional): The lower threshold. If None, no lower threshold is applied.
+            upper (float, optional): The upper threshold. If None, no upper threshold is applied.
+
+        Returns:
+            list: Indices of detected outliers.
+        """
+        if len(data) == 0:
+            return []
+        
+        # Handle NaN values by ignoring them
+        mask = ~np.isnan(data)
+        clean_data = data[mask]
+        
+        if len(clean_data) == 0:
+            return []
+        
+        if lower is not None:
+            lower_mask = clean_data < lower
+        else:
+            lower_mask = np.full(clean_data.shape, False)
+        
+        if upper is not None:
+            upper_mask = clean_data > upper
+        else:
+            upper_mask = np.full(clean_data.shape, False)
+        
+        outlier_mask = lower_mask | upper_mask
+        outlier_indices = np.where(mask)[0][outlier_mask]
+        
+        return outlier_indices.tolist()
