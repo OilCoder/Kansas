@@ -21,7 +21,14 @@ import numpy as np
 from scipy import stats
 from sklearn.ensemble import IsolationForest
 from sklearn.cluster import DBSCAN
-
+from collections import Counter
+import numpy as np
+import copy 
+from multiprocessing import Pool, cpu_count
+from sklearn.ensemble import IsolationForest
+from sklearn.cluster import DBSCAN
+from scipy import stats
+from sklearn.neighbors import LocalOutlierFactor
 
 # region LASIO Supress stdout
 # SuppressOutput context manager
@@ -40,6 +47,7 @@ class SuppressOutput:
         sys.stdout = self.original_stdout
         sys.stderr = self.original_stderr
 
+
 # region Project Manager
 class ProjectManager:
     def __init__(self, base_directory):
@@ -56,7 +64,8 @@ class ProjectManager:
         self.well_stats = {}
         self.formation_data = {}  
         self.outliers = {}
-        self.original_well_data = {}
+        self.prepared_data = {}  
+
 
     # region path_las_file_list
     def las_file_list(self):
@@ -211,7 +220,7 @@ class ProjectManager:
         # Optionally, filter the project's data to only include selected curves
         self.filter_curves_in_project(self)
 
-    def filter_curves_in_project(self, project):
+    def filter_curves_in_project(self):
         """
         Filters the project's well data to only include the selected curves.
         """
@@ -220,7 +229,7 @@ class ProjectManager:
                 if curve_name not in self.selected_curves:
                     del well.data[curve_name]
 
-        return project
+        return self.project
         
     def get_curve_descriptions(self):
         """
@@ -319,8 +328,7 @@ class ProjectManager:
         self.well_stats = well_stats
         return {'Field': field_stats, 'Wells': well_stats}
 
-# region Outliers
-
+    # region Outliers
     def apply_method(self, method, data, **kwargs):
         """
         Applies a specific outlier detection method to the data.
@@ -343,39 +351,65 @@ class ProjectManager:
             return self.detect_isolation_forest_outliers(data, contamination=kwargs.get('contamination', 0.01))
         elif method == 'dbscan':
             return self.detect_dbscan_outliers(data, eps=kwargs.get('eps', 0.5), min_samples=kwargs.get('min_samples', 5))
-        elif method == 'threshold_based':
-            return self.detect_threshold_outliers(data, lower=kwargs.get('lower'), upper=kwargs.get('upper'))
+        elif method == 'local_outlier_factor':
+            return self.detect_local_outlier_factor_outliers(
+                data,
+                n_neighbors=kwargs.get('n_neighbors', 20),
+                contamination=kwargs.get('contamination', 'auto')
+            )
         else:
             raise ValueError(f"Unsupported outlier detection method: {method}")
 
+    def process_curve(self, args):
+        well_name, well, curve = args
+        data = well.data[curve].values
+        mask = ~np.isnan(data)
+        clean_data = data[mask]
+
+        if len(clean_data) == 0:
+            return well_name, curve, {}
+
+        outlier_indices_dict = {}
+        for method in self.methods:
+            method_params = self.kwargs.get(method, {})
+            outlier_indices_in_clean_data = self.apply_method(method, clean_data, **method_params)
+            outlier_indices = np.where(mask)[0][outlier_indices_in_clean_data]
+            outlier_indices_dict[method] = outlier_indices.tolist()
+
+        return well_name, curve, outlier_indices_dict
+
     def detect_all_outliers(self, methods=None, curves=None, **kwargs):
         if methods is None:
-            methods = ['z_score', 'modified_z_score', 'iqr', 'isolation_forest', 'dbscan', 'threshold_based']
+            methods = ['z_score', 'modified_z_score', 'iqr', 'isolation_forest', 'dbscan', 'local_outlier_factor']
         
         if curves is None:
             curves = self.selected_curves
         
+        self.methods = methods
+        self.kwargs = kwargs
+        
         # Initialize the outliers dictionary
         self.outliers = {method: {} for method in methods}
         
-        for method in methods:
-            print(f"Applying method: {method}")
-            for well in self.project:
-                well_name = well.name
+        well_curve_pairs = []
+        for well in self.project:
+            well_name = well.header.loc[well.header['mnemonic'] == 'LEASE', 'value'].values[0]
+            for curve in curves:
+                if curve in well.data:
+                    well_curve_pairs.append((well_name, well, curve))
+        
+        with Pool(processes=cpu_count()) as pool:
+            results = pool.map(self.process_curve, well_curve_pairs)
+        
+        # Organize results into the outliers dictionary
+        for well_name, curve, outlier_indices_dict in results:
+            for method, outlier_indices in outlier_indices_dict.items():
                 if well_name not in self.outliers[method]:
                     self.outliers[method][well_name] = {}
-                
-                for curve in curves:
-                    if curve in well.data:
-                        data = well.data[curve].values
-                        print(f"Processing Well: {well_name}, Curve: {curve}")
-                        # Retrieve method-specific parameters if provided
-                        method_params = kwargs.get(method, {})
-                        outlier_indices = self.apply_method(method, data, **method_params)
-                        self.outliers[method][well_name][curve] = outlier_indices
-                        print(f"Detected {len(outlier_indices)} outliers using {method} for Well: {well_name}, Curve: {curve}")
-        
-        return self.outliers
+                self.outliers[method][well_name][curve] = outlier_indices
+
+        # return self.outliers
+        return 'Outliers detected successfully'
 
     def detect_z_score_outliers(self, data, threshold=3.0):
         """
@@ -391,17 +425,8 @@ class ProjectManager:
         if len(data) == 0:
             return []
         
-        # Handle NaN values by ignoring them
-        mask = ~np.isnan(data)
-        clean_data = data[mask]
-        
-        if len(clean_data) == 0:
-            return []
-        
-        z_scores = np.abs(stats.zscore(clean_data))
-        outlier_mask = z_scores > threshold
-        outlier_indices = np.where(mask)[0][outlier_mask]
-        
+        z_scores = np.abs(stats.zscore(data))
+        outlier_indices = np.where(z_scores > threshold)[0]
         return outlier_indices.tolist()
     
     def detect_modified_z_score_outliers(self, data, threshold=3.5):
@@ -418,22 +443,13 @@ class ProjectManager:
         if len(data) == 0:
             return []
         
-        # Handle NaN values by ignoring them
-        mask = ~np.isnan(data)
-        clean_data = data[mask]
-        
-        if len(clean_data) == 0:
-            return []
-        
-        median = np.median(clean_data)
-        mad = np.median(np.abs(clean_data - median))
+        median = np.median(data)
+        mad = np.median(np.abs(data - median))
         if mad == 0:
             return []
         
-        modified_z_scores = 0.6745 * (clean_data - median) / mad
-        outlier_mask = np.abs(modified_z_scores) > threshold
-        outlier_indices = np.where(mask)[0][outlier_mask]
-        
+        modified_z_scores = 0.6745 * (data - median) / mad
+        outlier_indices = np.where(np.abs(modified_z_scores) > threshold)[0]
         return outlier_indices.tolist()
     
     def detect_iqr_outliers(self, data, factor=1.5):
@@ -450,22 +466,13 @@ class ProjectManager:
         if len(data) == 0:
             return []
         
-        # Handle NaN values by ignoring them
-        mask = ~np.isnan(data)
-        clean_data = data[mask]
-        
-        if len(clean_data) == 0:
-            return []
-        
-        Q1 = np.percentile(clean_data, 25)
-        Q3 = np.percentile(clean_data, 75)
+        Q1 = np.percentile(data, 25)
+        Q3 = np.percentile(data, 75)
         IQR = Q3 - Q1
         lower_bound = Q1 - factor * IQR
         upper_bound = Q3 + factor * IQR
         
-        outlier_mask = (clean_data < lower_bound) | (clean_data > upper_bound)
-        outlier_indices = np.where(mask)[0][outlier_mask]
-        
+        outlier_indices = np.where((data < lower_bound) | (data > upper_bound))[0]
         return outlier_indices.tolist()
     
     def detect_isolation_forest_outliers(self, data, contamination=0.01):
@@ -482,18 +489,10 @@ class ProjectManager:
         if len(data) == 0:
             return []
         
-        # Handle NaN values by ignoring them
-        mask = ~np.isnan(data)
-        clean_data = data[mask].reshape(-1, 1)
-        
-        if len(clean_data) == 0:
-            return []
-        
-        iso_forest = IsolationForest(contamination=contamination, random_state=42)
+        clean_data = data.reshape(-1, 1)
+        iso_forest = IsolationForest(contamination=contamination, random_state=42, n_jobs=1)
         preds = iso_forest.fit_predict(clean_data)
-        outlier_mask = preds == -1
-        outlier_indices = np.where(mask)[0][outlier_mask]
-        
+        outlier_indices = np.where(preds == -1)[0]
         return outlier_indices.tolist()
     
     def detect_dbscan_outliers(self, data, eps=0.5, min_samples=5):
@@ -511,29 +510,20 @@ class ProjectManager:
         if len(data) == 0:
             return []
         
-        # Handle NaN values by ignoring them
-        mask = ~np.isnan(data)
-        clean_data = data[mask].reshape(-1, 1)
-        
-        if len(clean_data) == 0:
-            return []
-        
-        dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+        clean_data = data.reshape(-1, 1)
+        dbscan = DBSCAN(eps=eps, min_samples=min_samples, n_jobs=1)
         labels = dbscan.fit_predict(clean_data)
-        # In DBSCAN, -1 label is for noise points
-        outlier_mask = labels == -1
-        outlier_indices = np.where(mask)[0][outlier_mask]
-        
+        outlier_indices = np.where(labels == -1)[0]
         return outlier_indices.tolist()
-
-    def detect_threshold_outliers(self, data, lower=None, upper=None):
+    
+    def detect_local_outlier_factor_outliers(self, data, n_neighbors=20, contamination='auto'):
         """
-        Detects outliers based on user-defined lower and/or upper thresholds.
+        Detects outliers using the Local Outlier Factor method.
 
         Args:
             data (array-like): The data array.
-            lower (float, optional): The lower threshold. If None, no lower threshold is applied.
-            upper (float, optional): The upper threshold. If None, no upper threshold is applied.
+            n_neighbors (int): Number of neighbors to use for k-neighbors queries.
+            contamination (float or 'auto'): The amount of contamination of the data set.
 
         Returns:
             list: Indices of detected outliers.
@@ -541,24 +531,133 @@ class ProjectManager:
         if len(data) == 0:
             return []
         
-        # Handle NaN values by ignoring them
-        mask = ~np.isnan(data)
-        clean_data = data[mask]
-        
-        if len(clean_data) == 0:
-            return []
-        
-        if lower is not None:
-            lower_mask = clean_data < lower
-        else:
-            lower_mask = np.full(clean_data.shape, False)
-        
-        if upper is not None:
-            upper_mask = clean_data > upper
-        else:
-            upper_mask = np.full(clean_data.shape, False)
-        
-        outlier_mask = lower_mask | upper_mask
-        outlier_indices = np.where(mask)[0][outlier_mask]
-        
+        clean_data = data.reshape(-1, 1)
+        lof = LocalOutlierFactor(n_neighbors=n_neighbors, contamination=contamination, n_jobs=1)
+        preds = lof.fit_predict(clean_data)
+        outlier_indices = np.where(preds == -1)[0]
         return outlier_indices.tolist()
+
+    def prepare_data(self, min_methods: int = 2) -> None:
+        """
+        Prepares data for machine learning by filtering outliers, ordering curves according to mapping,
+        merging 'Cali' curves by taking maximum, adding 'Formation' column, and removing rows with NaN values.
+
+        Args:
+            min_methods (int): Minimum number of methods that must flag a data point as an outlier.
+                                Defaults to 2.
+
+        Raises:
+            ValueError: If outliers have not been detected yet.
+        """
+        if not self.outliers:
+            raise ValueError("Outliers have not been detected yet. Please run detect_all_outliers() first.")
+
+        self.prepared_data = {}
+
+        for well in self.project:
+            # Use lease name as well identifier
+            lease_name = well.header.loc[well.header['mnemonic'] == 'LEASE', 'value'].values[0]
+            well_df = well.df()
+
+            # Copy DataFrame to avoid modifying original data
+            filtered_df = well_df.copy()
+            # print(f"Processing well: {lease_name}")
+
+            # Filter outliers for each selected curve
+            for curve in self.selected_curves:
+                if curve not in filtered_df.columns:
+                    continue
+
+                # Get outlier indices for the current curve
+                all_outlier_indices = []
+                for method, wells in self.outliers.items():
+                    outlier_indices = wells.get(lease_name, {}).get(curve, [])
+                    all_outlier_indices.extend(outlier_indices)
+
+                # Count the frequency of outlier detection
+                counts = Counter(all_outlier_indices)
+                indices_to_filter = [idx for idx, cnt in counts.items() if cnt >= min_methods]
+
+                # Set outliers to NaN
+                if indices_to_filter:
+                    filtered_df.iloc[indices_to_filter, filtered_df.columns.get_loc(curve)] = np.nan
+
+            # Initialize a DataFrame to store the final prepared data
+            prepared_df = pd.DataFrame(index=filtered_df.index)
+
+            # Process each group in standardized_curve_mapping
+            for group_name, group_curves in self.standardized_curve_mapping.items():
+                # Curves in the group that are present in the DataFrame
+                available_curves = [curve for curve in group_curves if curve in filtered_df.columns]
+
+                if not available_curves:
+                    # print(f"No curves available for group '{group_name}' in well '{lease_name}'.")
+                    continue
+
+                if group_name == 'Cali':
+                    # For 'Cali' group, take the maximum value at each depth
+                    prepared_df[group_name] = filtered_df[available_curves].max(axis=1)
+                else:
+                    # For other groups, keep individual curves
+                    for curve in available_curves:
+                        prepared_df[curve] = filtered_df[curve]
+
+            # Add 'Formation' column based on formation_data
+            if lease_name in self.formation_data:
+                formation_intervals = self.formation_data[lease_name]
+                # Correct intervals where base > top
+                formation_intervals = [
+                    (min(base, top), max(base, top), formation_name) for base, top, formation_name in formation_intervals
+                ]
+                # Create a DataFrame from formation intervals
+                formation_df = pd.DataFrame(formation_intervals, columns=['StartDepth', 'EndDepth', 'Formation'])
+                # Ensure depths are sorted
+                formation_df.sort_values('StartDepth', inplace=True)
+                formation_df.reset_index(drop=True, inplace=True)
+
+                # Detect and adjust overlapping intervals
+                for i in range(len(formation_df) - 1):
+                    current_end = formation_df.loc[i, 'EndDepth']
+                    next_start = formation_df.loc[i + 1, 'StartDepth']
+                    if current_end > next_start:
+                        # Adjust the EndDepth of the current interval to match the StartDepth of the next
+                        # print(f"Adjusting overlapping intervals in well '{lease_name}':")
+                        # print(f"  '{formation_df.loc[i, 'Formation']}' end depth adjusted from {current_end} to {next_start}")
+                        formation_df.loc[i, 'EndDepth'] = next_start
+
+                # Create an IntervalIndex
+                intervals = pd.IntervalIndex.from_arrays(
+                    formation_df['StartDepth'], formation_df['EndDepth'], closed='left'
+                )
+
+                # Map depths to formations
+                depths = prepared_df.index.values.astype(float)
+                indexer, missing = intervals.get_indexer_non_unique(depths)
+                formation_labels = formation_df['Formation'].values
+
+                # Initialize formation assignments with 'Unknown'
+                formation_for_depths = np.array(['Unknown'] * len(depths), dtype=object)
+
+                # Assign formations to depths
+                for idx, idx_interval in enumerate(indexer):
+                    if idx_interval != -1:
+                        # If multiple intervals match, idx_interval will be an array
+                        if isinstance(idx_interval, np.ndarray):
+                            # Handle multiple matches (e.g., take the first matching formation)
+                            formation_for_depths[idx] = formation_labels[idx_interval[0]]
+                        else:
+                            formation_for_depths[idx] = formation_labels[idx_interval]
+
+                # Add 'Formation' column
+                prepared_df['Formation'] = formation_for_depths
+            else:
+                # If no formation data is available for the well
+                prepared_df['Formation'] = 'Unknown'
+
+            # Drop rows with any NaN values (excluding 'Formation' column)
+            prepared_df.dropna(subset=prepared_df.columns.difference(['Formation']), inplace=True)
+
+            # Store the DataFrame
+            self.prepared_data[lease_name] = prepared_df
+
+        print("Data has been prepared successfully.")

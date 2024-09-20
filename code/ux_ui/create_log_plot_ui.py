@@ -17,6 +17,7 @@ default_plot_settings = {
     'Micro': {'colormap': sns.dark_palette("orange", as_cmap=True), 'line_style': 'Solid', 'line_width': 1.0, 'x_scale': 'linear', 'track_width': 'Normal'},
     'Density': {'colormap': sns.dark_palette("blue", as_cmap=True), 'line_style': 'Solid', 'line_width': 1.0, 'x_scale': 'linear', 'track_width': 'Normal'},
     'Sonic': {'colormap': sns.dark_palette("purple", as_cmap=True), 'line_style': 'Solid', 'line_width': 1.0, 'x_scale': 'linear', 'track_width': 'Normal'},
+    'Neutron': {'colormap': sns.dark_palette("green", as_cmap=True), 'line_style': 'Solid', 'line_width': 1.0, 'x_scale': 'linear', 'track_width': 'Normal'},
 }
 
 # Define line style mapping globally
@@ -521,7 +522,7 @@ def plot_formation_data(ax, well, project_manager, min_depth, max_depth):
 
         # Plot formation band
         ax.axhspan(base, top, color=color, alpha=0.5)
-        ax.text(0.5, (top + base) / 2, lithology, 
+        ax.text(0.5, (top + base) / 2, f"{formation_name} / {lithology}", 
                 horizontalalignment='center', verticalalignment='center',
                 rotation='horizontal', fontsize=8, color='black')
 
@@ -558,47 +559,85 @@ def plot_depth_track(ax, well, min_depth, max_depth):
     ax.grid(True, axis='y', linestyle='--', alpha=0.5)
 
 def plot_log_track(ax, well, track_name, track, track_config):
-    min_values = None
-    max_values = None
     lines = []
     labels = []
+    axes = [ax]  # List to hold all axes for this track
 
     # Get the colormap for this track
     cmap = default_plot_settings.get(track_name, {}).get('colormap', sns.color_palette("deep", as_cmap=True))
     
-    # Generate saturated colors for the curves
+    # Generate colors for all curves
     num_curves = len(track)
-    if track_name == 'GR-SP':
-        colors = cmap(np.linspace(0.1, 0.9, num_curves))  # Wider range for GR-SP
+    if isinstance(cmap, mcolors.Colormap):
+        colors = [cmap(i) for i in np.linspace(0, 1, num_curves)]
+    elif callable(cmap):
+        colors = cmap(num_curves)
     else:
-        colors = cmap(np.linspace(0.2, 0.8, num_curves))  # Original range for other tracks
+        colors = cmap[:num_curves]  # Assume it's a list of colors
 
-    for i, curve in enumerate(track):
-        curve_config = track_config['curves'][curve]
+    # Create a color dictionary for quick lookup
+    color_dict = {curve: mcolors.rgb2hex(color) for curve, color in zip(track, colors)}
+
+    # Group curves with similar ranges
+    curve_ranges = {}
+    for curve in track:
         data = well.data[curve]
-        
-        # Use the color from the config if set, otherwise use the generated color
-        color = curve_config['color'] if curve_config['color'] != '#000000' else mcolors.rgb2hex(colors[i])
-        
-        line = ax.plot(data.values, data.index, label=curve,
-                color=color,
-                linestyle=line_style_map[curve_config['line_style']],
-                linewidth=curve_config['line_width'])
-        lines.extend(line)
-        labels.append(curve)
-        
-        if min_values is None:
-            min_values = data.values
-            max_values = data.values
+        curve_ranges[curve] = (np.nanmin(data.values), np.nanmax(data.values))
+
+    grouped_curves = []
+    for curve in track:
+        added = False
+        for group in grouped_curves:
+            if is_similar_range(curve_ranges[curve], curve_ranges[group[0]]):
+                group.append(curve)
+                added = True
+                break
+        if not added:
+            grouped_curves.append([curve])
+
+    for i, group in enumerate(grouped_curves):
+        if i > 0:
+            new_ax = ax.twiny()
+            new_ax.spines['bottom'].set_position(('outward', 40 * i))
+            axes.append(new_ax)
         else:
-            min_values = np.minimum(min_values, data.values)
-            max_values = np.maximum(max_values, data.values)
-    
-    if track_config['fill_between'] and min_values is not None and max_values is not None:
-        ax.fill_betweenx(data.index, min_values, max_values, 
-                         color=track_config['fill_color'],
-                         alpha=track_config['fill_alpha'])
-    
+            new_ax = ax
+
+        group_min = min(curve_ranges[curve][0] for curve in group)
+        group_max = max(curve_ranges[curve][1] for curve in group)
+
+        for curve in group:
+            curve_config = track_config['curves'][curve]
+            data = well.data[curve]
+            
+            # Use the color from the color dictionary
+            color = curve_config['color'] if curve_config['color'] != '#000000' else color_dict[curve]
+
+            line = new_ax.plot(data.values, data.index, label=curve,
+                    color=color,
+                    linestyle=line_style_map[curve_config['line_style']],
+                    linewidth=curve_config['line_width'])
+            lines.extend(line)
+            labels.append(curve)
+
+        new_ax.set_xlabel(', '.join(group), fontsize='x-small', color='black')
+        new_ax.tick_params(axis='x', labelsize='x-small')
+        new_ax.set_xscale(track_config['x_scale'])
+        
+        # Handle log scale with non-positive values
+        if track_config['x_scale'] == 'log':
+            if group_min <= 0:
+                group_min = np.min([val for val in data.values if val > 0])
+            group_min = max(group_min, 1e-6)  # Set a small positive minimum
+            group_max = max(group_max, group_min * 10)  # Ensure a reasonable range
+        
+        new_ax.set_xlim(group_min, group_max)
+
+        # Ensure x-axis is at the bottom and remove top spine
+        new_ax.xaxis.set_ticks_position('bottom')
+        new_ax.xaxis.set_label_position('bottom')
+        new_ax.spines['top'].set_visible(False)
+
     # Create longer line handles for the legend
     legend_handles = [plt.Line2D([0], [0], color=line.get_color(), 
                                  linestyle=line.get_linestyle(),
@@ -617,11 +656,39 @@ def plot_log_track(ax, well, track_name, track, track_config):
             horizontalalignment='center', verticalalignment='bottom',
             transform=ax.transAxes, fontsize='large', fontweight='bold', color='black')
     
-    ax.set_xlabel(data.units, fontsize='x-small', color='black')
-    ax.set_xscale(track_config['x_scale'])
     ax.grid(track_config['grid'], color='gray', alpha=0.3)
-    ax.tick_params(axis='both', which='major', labelsize='x-small', colors='black')
-    ax.spines['bottom'].set_color('black')
-    ax.spines['top'].set_color('black') 
-    ax.spines['right'].set_color('black')
-    ax.spines['left'].set_color('black')
+    ax.tick_params(axis='y', which='major', labelsize='x-small', colors='black')
+    
+    for axis in axes:
+        axis.spines['bottom'].set_color('black')
+        axis.spines['top'].set_visible(False)
+        axis.spines['right'].set_color('black')
+        axis.spines['left'].set_color('black')
+
+    # Handle fill between if needed
+    if track_config['fill_between'] and len(track) >= 2:
+        min_values = well.data[track[0]].values
+        max_values = well.data[track[1]].values
+        ax.fill_betweenx(well.data[track[0]].index, min_values, max_values, 
+                         color=track_config['fill_color'],
+                         alpha=track_config['fill_alpha'])
+
+    # Adjust the position of the main axis to accommodate additional axes at the bottom
+    ax.set_position([ax.get_position().x0, 
+                     ax.get_position().y0 + 0.1 * (len(axes) - 1), 
+                     ax.get_position().width, 
+                     ax.get_position().height - 0.1 * (len(axes) - 1)])
+
+    # Ensure the first axis (main axis) is behind others
+    ax.set_zorder(1)
+    for i, plot_ax in enumerate(axes[1:], start=2):
+        plot_ax.set_zorder(i)
+    ax.patch.set_visible(False)  # Make the background of the main axis transparent
+
+def is_similar_range(range1, range2, tolerance=0.1):
+    min1, max1 = range1
+    min2, max2 = range2
+    range1_size = max1 - min1
+    range2_size = max2 - min2
+    overlap = min(max1, max2) - max(min1, min2)
+    return overlap >= (1 - tolerance) * min(range1_size, range2_size)
