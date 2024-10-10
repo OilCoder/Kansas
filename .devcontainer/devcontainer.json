@@ -1,0 +1,23 @@
+{
+    "name": "RAPIDS GPU Dev Container",
+    "image": "nvcr.io/nvidia/rapidsai/base:24.08-cuda12.5-py3.11",
+    "runArgs": [
+        "--gpus", "all",
+        "--shm-size=1g",
+        "--ulimit", "memlock=-1",
+        "--ulimit", "stack=67108864",
+        "--user", "root"
+    ],
+    "extensions": [
+        "ms-python.python",
+        "ms-toolsai.jupyter"
+    ],
+    "settings": {
+        "python.pythonPath": "/opt/conda/bin/python"
+    },
+    "mounts": [
+        "source=/home/pokinux/Kansas,target=/workspace,type=bind"
+    ],
+    "workspaceFolder": "/workspace",
+    "postCreateCommand": "apt-get update && apt-get install -y git && conda install -c conda-forge ipykernel ipywidgets pandas numpy scipy matplotlib seaborn plotly scikit-learn tensorflow -y && pip install welly lasio striplog plotly dash missingno && python -m ipykernel install --name rapids --display-name 'Python (RAPIDS)'"
+}

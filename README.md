@@ -9,9 +9,7 @@ This project focuses on preparing `.las` (Log ASCII Standard) files for machine 
 1. [Data Source](#data-source)
 2. [Installation](#installation)
    - [System Requirements](#system-requirements)
-   - [Conda Environment Setup](#conda-environment-setup)
-   - [Install RAPIDS](#install-rapids)
-   - [Install Additional Packages](#install-additional-packages)
+   - [Docker Environment Setup](#docker-environment-setup)
 3. [Methodology](#methodology)
    - [Download and Prepare Data](#download-and-prepare-data)
    - [Field Selection](#field-selection)
@@ -35,36 +33,40 @@ All information for this project, including the LAS files and associated data, w
 
 Ensure your system meets the following requirements:
 
+- **Docker**: Install Docker on your system. Refer to the [Docker installation guide](https://docs.docker.com/get-docker/) for details.
 - **CUDA & NVIDIA Drivers**: Install a supported CUDA version with the corresponding NVIDIA drivers. For optimal performance, CUDA 11.8 with Driver 520.61.05 is recommended. More information is available at [NVIDIA's CUDA Toolkit Archive](https://developer.nvidia.com/cuda-11-8-0-download-archive).
 
-### Conda Environment Setup
+### Docker Environment Setup
 
-1. **Install Miniconda**: Download and install Miniconda from [here](https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh). Run the installation script and follow the on-screen instructions.
+1. **Clone the Repository**:
 
    ```bash
-   wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-   bash Miniconda3-latest-Linux-x86_64.sh
+   git clone https://github.com/MrMoustache000/Kansas.git
+   cd Kansas
    ```
 
-2. **Initialize Conda**: Open a new terminal window to start using Conda.
+2. **Set Up the Development Container**:
+   - This project uses a **devcontainer** setup for reproducibility and ease of use.
+   - The environment is defined in the `devcontainer.json` file.
 
-### Install RAPIDS
+3. **Run the Docker Container**:
+   - Ensure Docker is running and then use the following command to start the container:
 
-RAPIDS is required for efficient data processing. Use the [RAPIDS Install Selector](https://rapids.ai/start.html) to choose the installation method that best fits your environment.
+   ```bash
+   docker run --gpus all --pull always --rm -it \
+       --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 \
+       -v $(pwd):/workspace -w /workspace \
+       nvcr.io/nvidia/rapidsai/base:24.08-cuda12.5-py3.11
+   ```
 
-### Install Additional Packages
+   Alternatively, if using VS Code with Remote Containers, open the folder and use the **Remote-Containers: Reopen in Container** option to automatically set up the environment.
 
-After setting up the Conda environment and RAPIDS, install the following Python packages:
+4. **Install Additional Python Packages** (if not already installed via `postCreateCommand`):
 
-- `lasio`
-- `welly`
-- `striplog`
-- `pandas`
-- `numpy`
-- `matplotlib`
-- `ipywidgets`
-
-Install these packages using `pip` or `conda`.
+   ```bash
+   pip install welly lasio striplog missingno
+   conda install -c conda-forge ipywidgets pandas numpy matplotlib seaborn plotly scikit-learn tensorflow scipy -y
+   ```
 
 ## Methodology
 
