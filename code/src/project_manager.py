@@ -29,6 +29,7 @@ from sklearn.ensemble import IsolationForest
 from sklearn.cluster import DBSCAN
 from scipy import stats
 from sklearn.neighbors import LocalOutlierFactor
+from pandas.api.types import is_any_real_numeric_dtype
 
 # region LASIO Supress stdout
 # SuppressOutput context manager
@@ -46,9 +47,8 @@ class SuppressOutput:
         self.original_stderr = self.original_stderr
         sys.stdout = self.original_stdout
         sys.stderr = self.original_stderr
+# endregion
 
-
-# region Project Manager
 class ProjectManager:
     def __init__(self, base_directory):
         self.base_directory = base_directory
@@ -65,7 +65,7 @@ class ProjectManager:
         self.formation_data = {}  
         self.outliers = {}
         self.prepared_data = {}  
-
+        self.unique_formations = set()  # New attribute to store unique formations
 
     # region path_las_file_list
     def las_file_list(self):
@@ -81,6 +81,7 @@ class ProjectManager:
         field_path = os.path.join(self.base_directory, self.selected_field)
         las_files = [os.path.join(field_path, file) for file in os.listdir(field_path) if file.endswith('.las')]
         return las_files
+    # endregion
 
     # region Load ans Select field
     ########## --- ipwidget - load_and_select_field / widgets.py --- ##########
@@ -110,7 +111,24 @@ class ProjectManager:
                 progress_callback(i + 1, len(las_files))
         
         self.project = welly.Project(wells)
+        
+        # Collect unique formations after all wells have been processed
+        self.collect_unique_formations()
+        
         return self.project
+
+    def collect_unique_formations(self):
+        """
+        Collects all unique formations across all wells in the selected field.
+        """
+        all_formations = set()
+        for well_formations in self.formation_data.values():
+            # well_formations is a list of formation intervals for a well
+            for formation_interval in well_formations:
+                # formation_interval is a tuple: (top_depth, base_depth, formation_name)
+                formation_name = formation_interval[2]
+                all_formations.add(formation_name)
+        self.unique_formations = all_formations
 
     def extract_formation_data(self, well, las_file):
         """
@@ -190,6 +208,7 @@ class ProjectManager:
         # Update the formation_data attribute and return the result
         self.formation_data[well_name] = formation_data[well_name]
         return formation_data
+    # endregion
 
     # region Filtering curves
     ########## --- ipwidget - load_and_select_curves / widgets.py--- ##########
@@ -253,7 +272,8 @@ class ProjectManager:
 
         self.curve_descriptions = curve_descriptions
         return self.curve_descriptions
-    
+    # endregion
+
 # region Stadistics
     ########## --- ipwidget - stadistics / widgets.py. --- ##########
     def descriptive_statistics(self):
@@ -327,6 +347,7 @@ class ProjectManager:
         self.field_stats = field_stats
         self.well_stats = well_stats
         return {'Field': field_stats, 'Wells': well_stats}
+    # endregion
 
     # region Outliers
     def apply_method(self, method, data, **kwargs):
@@ -557,12 +578,16 @@ class ProjectManager:
         for well in self.project:
             # Use lease name as well identifier
             lease_name = well.header.loc[well.header['mnemonic'] == 'LEASE', 'value'].values[0]
-            well_df = well.df()
-
+            
+            try:
+                well_df = well.df()
+            except IndexError:
+                print(f"Skipping well '{lease_name}' due to empty data.")
+                continue
+            
             # Copy DataFrame to avoid modifying original data
             filtered_df = well_df.copy()
-            # print(f"Processing well: {lease_name}")
-
+            
             # Filter outliers for each selected curve
             for curve in self.selected_curves:
                 if curve not in filtered_df.columns:
@@ -578,9 +603,12 @@ class ProjectManager:
                 counts = Counter(all_outlier_indices)
                 indices_to_filter = [idx for idx, cnt in counts.items() if cnt >= min_methods]
 
+                # Filter out indices that are out of bounds
+                valid_indices = [idx for idx in indices_to_filter if idx < len(filtered_df)]
+
                 # Set outliers to NaN
-                if indices_to_filter:
-                    filtered_df.iloc[indices_to_filter, filtered_df.columns.get_loc(curve)] = np.nan
+                if valid_indices:
+                    filtered_df.iloc[valid_indices, filtered_df.columns.get_loc(curve)] = np.nan
 
             # Initialize a DataFrame to store the final prepared data
             prepared_df = pd.DataFrame(index=filtered_df.index)
@@ -611,6 +639,11 @@ class ProjectManager:
                 ]
                 # Create a DataFrame from formation intervals
                 formation_df = pd.DataFrame(formation_intervals, columns=['StartDepth', 'EndDepth', 'Formation'])
+                
+                # Convert 'StartDepth' and 'EndDepth' to numeric data types
+                formation_df['StartDepth'] = pd.to_numeric(formation_df['StartDepth'], errors='coerce')
+                formation_df['EndDepth'] = pd.to_numeric(formation_df['EndDepth'], errors='coerce')
+                
                 # Ensure depths are sorted
                 formation_df.sort_values('StartDepth', inplace=True)
                 formation_df.reset_index(drop=True, inplace=True)
@@ -661,3 +694,4 @@ class ProjectManager:
             self.prepared_data[lease_name] = prepared_df
 
         print("Data has been prepared successfully.")
+    # endregion

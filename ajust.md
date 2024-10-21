@@ -1,24 +1,3 @@
-Resumen del Plan para la Preparación de Datos y Predicción de Curvas
-
-Objetivo del Proyecto
-
-Predecir curvas faltantes (probablemente sónicas o de densidad) en registros de pozo, usando diversas técnicas de machine learning e inteligencia artificial.
-
-Evaluar diferentes métodos cada dos semanas, generando curvas sintéticas y comparándolas con datos reales para validar el rendimiento de cada método.
-
-Estrategia de División de Datos
-
-Tres Conjuntos de Datos:
-
-Entrenamiento: Conjunto usado para ajustar el modelo y aprender patrones de las curvas disponibles.
-
-Validación: Conjunto usado durante el ajuste de hiperparámetros y selección del modelo. Este conjunto no participa directamente en el entrenamiento, pero ayuda a ajustar el rendimiento.
-
-Verificación Externa: El 10% de los pozos será usado como conjunto de verificación externa, completamente apartado del proceso de entrenamiento y validación, para evaluar la capacidad de generalización del modelo.
-
-División en Secciones Dentro de Cada Pozo:
-
-Cada pozo se dividirá en múltiples secciones (por ejemplo, de 10 o 20 pies). Algunas secciones se usarán para entrenamiento y otras para validación, de manera que cada pozo contribuya a ambos conjuntos.
 
 Esto permite evitar que un pozo completo esté en un solo conjunto, lo cual podría introducir sesgos si la ubicación del pozo tiene características geológicas particulares.
 
