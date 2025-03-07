@@ -3,7 +3,7 @@
     "image": "nvcr.io/nvidia/rapidsai/base:24.08-cuda12.5-py3.11",
     "runArgs": [
         "--gpus", "all",
-        "--shm-size=2g",  // Increased shared memory size for better performance
+        "--shm-size=2g",
         "--ulimit", "memlock=-1",
         "--ulimit", "stack=67108864",
         "--user", "root"
@@ -11,25 +11,33 @@
     "extensions": [
         "ms-python.python",
         "ms-toolsai.jupyter",
-        "ms-vscode-remote.remote-ssh" // Added extension for SSH
+        "ms-vscode-remote.remote-ssh",
+        "optuna.optuna-dashboard-vscode"
     ],
     "settings": {
-        "python.pythonPath": "/opt/conda/bin/python"
+        "python.defaultInterpreterPath": "/opt/conda/envs/my_project_env/bin/python",
+        "python.pythonPath": "/opt/conda/envs/my_project_env/bin/python"
     },
     "mounts": [
-        "source=/home/pokinux/Kansas,target=/workspace,type=bind",
+        "source=/home/pokinux/Kansas,target=/workspace,type=bind"
     ],
     "remoteEnv": {
-        "SSH_AUTH_SOCK": "/ssh-agent"  // Ensure SSH agent is available in the container
+        "SSH_AUTH_SOCK": "/ssh-agent"
     },
     "workspaceFolder": "/workspace",
-    "postCreateCommand": "apt-get update && apt-get install -y git openssh-client && conda install -c conda-forge ipykernel ipywidgets pandas numpy scipy matplotlib seaborn plotly scikit-learn tensorflow optuna -y && pip install welly lasio striplog plotly dash missingno && python -m ipykernel install --name rapids --display-name 'Python (RAPIDS)'",
+    "postCreateCommand": "apt-get update && apt-get install -y git openssh-client && \
+    conda create -n my_project_env python=3.11 -y && \
+    conda install -n my_project_env -c conda-forge ipykernel ipywidgets pandas numpy scipy matplotlib seaborn plotly scikit-learn optuna nodejs yarn -y && \
+    conda run -n my_project_env pip install tensorflow==2.16.2 welly lasio striplog dash missingno optuna-dashboard optuna-integration scikeras && \
+    conda run -n my_project_env python -m ipykernel install --name rapids --display-name 'Python (RAPIDS)'",
+    "forwardPorts": [8080],
     "customizations": {
         "vscode": {
             "extensions": [
                 "ms-python.python",
                 "ms-toolsai.jupyter",
-                "ms-vscode-remote.remote-ssh"  // Ensure this extension for SSH handling
+                "ms-vscode-remote.remote-ssh",
+                "optuna.optuna-dashboard-vscode"
             ]
         }
     }
