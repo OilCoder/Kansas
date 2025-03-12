@@ -67,6 +67,11 @@ from src.neural_network.cross_validate_top_configs import cross_validate_top_con
 from src.neural_network.trainer import train_final_model
 from src.neural_network.evaluate import evaluate_model
 
+# Import hyperparameters
+from .hyperparameters import (
+    RANDOM_SEED, MIN_CURVES, CV_SPLITS
+)
+
 logger = logging.getLogger(__name__)
 
 def pipeline(data, selected_curves, curves_to_predict, unique_formations):
@@ -124,7 +129,7 @@ def pipeline(data, selected_curves, curves_to_predict, unique_formations):
     logger = logging.getLogger(__name__)
     logger.info("Starting the pipeline...")
     
-    set_random_seed(42)
+    set_random_seed(RANDOM_SEED)
 
     # Step 0: Pipeline Configuration
     logger.info("Step 0: Pipeline Configuration")
@@ -135,7 +140,7 @@ def pipeline(data, selected_curves, curves_to_predict, unique_formations):
     # Step 1: Data Loading and Preprocessing
     logger.info("Step 1: Splitting data into train/validation and external test sets...")
     train_validation_data, external_test_data, discarded_wells, _ = split_wells_by_prediction(
-        data, curves_to_predict, min_curves=5, random_seed=42
+        data, curves_to_predict, min_curves=MIN_CURVES, random_seed=RANDOM_SEED
     )
 
     # Detailed split information
@@ -222,7 +227,7 @@ def pipeline(data, selected_curves, curves_to_predict, unique_formations):
 
     # Step 6: Cross-Validation of Top Hyperparameters
     logger.info("Step 6: Cross-Validation of Top Hyperparameters")
-    cross_val_results = cross_validate_top_configs(top_configs, X, y, preprocessor, cv_splits=5)
+    cross_val_results = cross_validate_top_configs(top_configs, X, y, preprocessor, cv_splits=CV_SPLITS)
     logger.info("    Cross-validation of top hyperparameters completed.")
 
     # Select the best hyperparameters based on cross-validation results

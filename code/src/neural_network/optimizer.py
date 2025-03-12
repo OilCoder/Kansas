@@ -44,6 +44,17 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from src.neural_network.model import build_model, get_callbacks  # Ensure correct import path
 
+# Import hyperparameters
+from .hyperparameters import (
+    RANDOM_SEED, OPTIM_N_TRIALS, OPTIM_TOP_N,
+    OPTIM_NUM_LAYERS_RANGE, OPTIM_NUM_UNITS_OPTIONS,
+    OPTIM_DROPOUT_RATE_RANGE, OPTIM_ACTIVATION_OPTIONS,
+    OPTIM_OPTIMIZER_OPTIONS, OPTIM_LEARNING_RATE_RANGE,
+    OPTIM_BATCH_SIZE_OPTIONS, OPTIM_EPOCHS_RANGE,
+    OPTIM_WEIGHT_INITIALIZER_OPTIONS, OPTIM_L1_REG_RANGE,
+    OPTIM_L2_REG_RANGE, OPTIM_MOMENTUM_RANGE
+)
+
 logger = logging.getLogger(__name__)
 
 def objective(trial, X, y, preprocessor):
@@ -53,26 +64,26 @@ def objective(trial, X, y, preprocessor):
     logger.info("Starting a new trial for hyperparameter optimization")
 
     # Suggest hyperparameters
-    num_layers = trial.suggest_int("num_layers", 1, 10)
-    num_units = trial.suggest_categorical("num_units", [32, 64, 128, 256])
-    dropout_rate = trial.suggest_float("dropout_rate", 0.0, 0.5, step=0.1)
-    activation = trial.suggest_categorical("activation", ["relu", "leaky_relu", "tanh", "elu", "sigmoid"])
-    optimizer_type = trial.suggest_categorical("optimizer_type", ["adam", "sgd", "rmsprop"])
-    learning_rate = trial.suggest_float("learning_rate", 1e-4, 1e-2, log=True)
-    batch_size = trial.suggest_categorical("batch_size", [32, 64, 128, 256, 512])
+    num_layers = trial.suggest_int("num_layers", OPTIM_NUM_LAYERS_RANGE[0], OPTIM_NUM_LAYERS_RANGE[1])
+    num_units = trial.suggest_categorical("num_units", OPTIM_NUM_UNITS_OPTIONS)
+    dropout_rate = trial.suggest_float("dropout_rate", OPTIM_DROPOUT_RATE_RANGE[0], OPTIM_DROPOUT_RATE_RANGE[1], step=0.1)
+    activation = trial.suggest_categorical("activation", OPTIM_ACTIVATION_OPTIONS)
+    optimizer_type = trial.suggest_categorical("optimizer_type", OPTIM_OPTIMIZER_OPTIONS)
+    learning_rate = trial.suggest_float("learning_rate", OPTIM_LEARNING_RATE_RANGE[0], OPTIM_LEARNING_RATE_RANGE[1], log=True)
+    batch_size = trial.suggest_categorical("batch_size", OPTIM_BATCH_SIZE_OPTIONS)
     use_learning_rate_decay = trial.suggest_categorical("use_learning_rate_decay", [True, False])
-    epochs = trial.suggest_int("epochs", 30, 70)
+    epochs = trial.suggest_int("epochs", OPTIM_EPOCHS_RANGE[0], OPTIM_EPOCHS_RANGE[1])
 
     # New hyperparameters
-    weight_initializer = trial.suggest_categorical("weight_initializer", ["glorot_uniform", "he_uniform", "lecun_uniform", "random_normal"])
-    l1_reg = trial.suggest_float("l1_reg", 1e-5, 1e-3, log=True)
-    l2_reg = trial.suggest_float("l2_reg", 1e-5, 1e-3, log=True)
+    weight_initializer = trial.suggest_categorical("weight_initializer", OPTIM_WEIGHT_INITIALIZER_OPTIONS)
+    l1_reg = trial.suggest_float("l1_reg", OPTIM_L1_REG_RANGE[0], OPTIM_L1_REG_RANGE[1], log=True)
+    l2_reg = trial.suggest_float("l2_reg", OPTIM_L2_REG_RANGE[0], OPTIM_L2_REG_RANGE[1], log=True)
 
     use_batch_norm = trial.suggest_categorical("use_batch_norm", [True, False])
 
     # If optimizer_type is 'sgd', suggest momentum
     if optimizer_type.lower() == "sgd":
-        momentum = trial.suggest_float("momentum", 0.0, 0.99, step=0.1)
+        momentum = trial.suggest_float("momentum", OPTIM_MOMENTUM_RANGE[0], OPTIM_MOMENTUM_RANGE[1], step=0.1)
     else:
         momentum = 0.0  # Default value
 
@@ -153,7 +164,7 @@ def objective(trial, X, y, preprocessor):
         logger.error(f"Trial failed due to error: {str(e)}")
         raise
 
-def optimize_hyperparameters(X, y, preprocessor, n_trials=100, top_n=3):
+def optimize_hyperparameters(X, y, preprocessor, n_trials=OPTIM_N_TRIALS, top_n=OPTIM_TOP_N):
     logger.info("Starting hyperparameter optimization using Optuna")
 
     # Define the storage path

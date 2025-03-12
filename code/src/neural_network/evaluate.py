@@ -39,6 +39,9 @@ from keras.models import load_model
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
+# Import hyperparameters
+from .hyperparameters import EVAL_METRICS 
+
 logger = logging.getLogger(__name__)
 
 def evaluate_model(

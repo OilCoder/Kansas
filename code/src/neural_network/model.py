@@ -48,58 +48,59 @@ Workflow:
     - Call `create_mlp_model` with the desired parameters to create an uncompiled MLP model.
 
 2. Model Compilation:
-    - Use `compile_model` to compile the MLP model.
-    - Specify the optimizer type, learning rate, loss function, and any additional metrics.
+    - Call `compile_model` with the appropriate parameters to compile the created model.
 
-Output:
--------
-The output is a compiled Keras MLP model that is ready to be trained on data.
+3. Model Training:
+    - Use the compiled model in training functions such as `train_model` from the `trainer.py` module.
 
-Errors to Avoid:
-----------------
-- Mismatch in Input Shapes:
-    Ensure that `input_shape` matches the shape of your preprocessed input data.
-- Incorrect Number of Outputs:
-    Verify that `num_outputs` matches the number of target variables you are predicting.
-- Invalid Hyperparameters:
-    Check that hyperparameters like `num_layers`, `num_units`, `dropout_rate`, etc., are set to sensible values.
-- Compilation Errors:
-    Ensure that the optimizer type and loss function are valid and supported by Keras.
+4. Model Evaluation:
+    - After training, evaluate the model's performance using functions from the `evaluate.py` module.
 
-Comments:
----------
-The MLP model is designed for regression tasks, assuming the prediction of continuous variables.
-Activation functions and layer configurations can be adjusted to experiment with different MLP architectures.
-The functions are intended to be used within a training pipeline that handles data preprocessing and model evaluation.
+Dependencies:
+------------
+- Keras: For neural network model creation and training.
+- TensorFlow: Backend for Keras operations.
+- NumPy: For numerical operations.
+- Logging: For logging model creation and compilation details.
+
+Maintenance:
+-----------
+- If modifying model architecture, ensure compatibility with the rest of the pipeline.
+- Update docstrings and comments when adding new functionality.
+- Consider the impact on training time and resources when changing model parameters.
 """
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout, Activation, LeakyReLU, BatchNormalization
-from tensorflow.keras.optimizers import Adam, SGD, RMSprop
-from tensorflow.keras.losses import MeanSquaredError
-from tensorflow.keras.metrics import (
-    MeanAbsoluteError,
-    RootMeanSquaredError,
-    MeanAbsolutePercentageError,
-)
-from tensorflow.keras.callbacks import LearningRateScheduler, EarlyStopping
-from tensorflow.keras.regularizers import l1_l2
 
-from optuna.integration import TFKerasPruningCallback
 import logging
+import numpy as np
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, BatchNormalization, LeakyReLU
+from keras.optimizers import Adam, SGD, RMSprop
+from keras.regularizers import l1_l2
+from keras.callbacks import EarlyStopping, ReduceLROnPlateau, LearningRateScheduler
+import optuna
+
+# Import from hyperparameters.py
+from .hyperparameters import (
+    DEFAULT_NUM_LAYERS, DEFAULT_NUM_UNITS, DEFAULT_DROPOUT_RATE, DEFAULT_ACTIVATION,
+    DEFAULT_WEIGHT_INITIALIZER, DEFAULT_L1_REG, DEFAULT_L2_REG, DEFAULT_USE_BATCH_NORM,
+    DEFAULT_OPTIMIZER_TYPE, DEFAULT_LEARNING_RATE, DEFAULT_MOMENTUM, DEFAULT_LOSS_FUNCTION,
+    DEFAULT_USE_LEARNING_RATE_DECAY, DEFAULT_USE_EARLY_STOPPING, TRAINER_EARLY_STOPPING_PATIENCE,
+    TRAINER_LR_DECAY_FACTOR, TRAINER_LR_DECAY_PATIENCE, TRAINER_MONITOR_METRIC, TRAINER_USE_PRUNING
+)
 
 logger = logging.getLogger(__name__)
 
 def create_mlp_model(
     input_shape,
     num_outputs,
-    num_layers=3,
-    num_units=64,
-    dropout_rate=0.2,
-    activation="relu",
-    weight_initializer="glorot_uniform",
-    l1_reg=0.0,
-    l2_reg=0.0,
-    use_batch_norm=False,
+    num_layers=DEFAULT_NUM_LAYERS,
+    num_units=DEFAULT_NUM_UNITS,
+    dropout_rate=DEFAULT_DROPOUT_RATE,
+    activation=DEFAULT_ACTIVATION,
+    weight_initializer=DEFAULT_WEIGHT_INITIALIZER,
+    l1_reg=DEFAULT_L1_REG,
+    l2_reg=DEFAULT_L2_REG,
+    use_batch_norm=DEFAULT_USE_BATCH_NORM,
 ):
     logger.info(
         f"Creating MLP model with input_shape={input_shape}, num_outputs={num_outputs}, "
@@ -120,66 +121,58 @@ def create_mlp_model(
         num_units,
         input_shape=input_shape,
         kernel_initializer=weight_initializer,
-        kernel_regularizer=regularizer
+        kernel_regularizer=regularizer,
+        activation=activation if activation.lower() != "leaky_relu" else None
     ))
-    if activation == 'leaky_relu':
-        model.add(LeakyReLU())
-    elif activation in ['relu', 'tanh', 'elu', 'sigmoid']:
-        model.add(Activation(activation))
-    else:
-        error_msg = f"Unsupported activation function: {activation}"
-        logger.error(error_msg)
-        raise ValueError(error_msg)
 
+    if activation.lower() == "leaky_relu":
+        model.add(LeakyReLU(alpha=0.1))
+    
     if use_batch_norm:
         model.add(BatchNormalization())
-
+    
     model.add(Dropout(dropout_rate))
-    logger.debug("Added input layer")
 
     # Hidden layers
-    for i in range(num_layers - 1):
+    for _ in range(num_layers - 1):
         model.add(Dense(
             num_units,
             kernel_initializer=weight_initializer,
-            kernel_regularizer=regularizer
+            kernel_regularizer=regularizer,
+            activation=activation if activation.lower() != "leaky_relu" else None
         ))
-        if activation == 'leaky_relu':
-            model.add(LeakyReLU())
-        elif activation in ['relu', 'tanh', 'elu', 'sigmoid']:
-            model.add(Activation(activation))
-        else:
-            error_msg = f"Unsupported activation function: {activation}"
-            logger.error(error_msg)
-            raise ValueError(error_msg)
-
+        
+        if activation.lower() == "leaky_relu":
+            model.add(LeakyReLU(alpha=0.1))
+        
         if use_batch_norm:
             model.add(BatchNormalization())
-
+        
         model.add(Dropout(dropout_rate))
-        logger.debug(f"Added hidden layer {i + 1}")
 
-    # Output layer
-    model.add(Dense(num_outputs, activation='linear'))
-    logger.debug("Added output layer")
+    # Output layer (regression)
+    model.add(Dense(num_outputs, activation="linear"))
 
-    logger.info("MLP model created successfully")
+    logger.info(f"Created MLP model with {num_layers} layers")
     return model
 
 def compile_model(
     model,
-    optimizer_type="adam",
-    learning_rate=0.001,
-    momentum=0.0,
-    loss_function="mse",
+    optimizer_type=DEFAULT_OPTIMIZER_TYPE,
+    learning_rate=DEFAULT_LEARNING_RATE,
+    momentum=DEFAULT_MOMENTUM,
+    loss_function=DEFAULT_LOSS_FUNCTION,
     metrics=None,
 ):
     logger.info(
-        f"Compiling model with optimizer={optimizer_type}, learning_rate={learning_rate}, "
-        f"momentum={momentum}, loss_function={loss_function}, metrics={metrics}"
+        f"Compiling model with optimizer_type={optimizer_type}, "
+        f"learning_rate={learning_rate}, loss_function={loss_function}, "
+        f"metrics={metrics}"
     )
 
-    # Optimizer selection
+    if metrics is None:
+        metrics = ["mse", "mae"]
+
     if optimizer_type.lower() == "adam":
         optimizer = Adam(learning_rate=learning_rate)
     elif optimizer_type.lower() == "sgd":
@@ -187,49 +180,38 @@ def compile_model(
     elif optimizer_type.lower() == "rmsprop":
         optimizer = RMSprop(learning_rate=learning_rate)
     else:
-        error_msg = f"Unsupported optimizer type: {optimizer_type}"
-        logger.error(error_msg)
-        raise ValueError(error_msg)
+        raise ValueError(f"Unsupported optimizer type: {optimizer_type}")
 
-    # Loss function selection
-    if loss_function.lower() == "mse":
-        loss = MeanSquaredError()
-    else:
-        error_msg = f"Unsupported loss function: {loss_function}"
-        logger.error(error_msg)
-        raise ValueError(error_msg)
+    model.compile(
+        optimizer=optimizer,
+        loss=loss_function,
+        metrics=metrics
+    )
 
-    # Metrics selection
-    if metrics is None:
-        metrics = [
-            MeanSquaredError(name="MSE"),
-            MeanAbsoluteError(name="MAE"),
-            RootMeanSquaredError(name="RMSE"),
-            MeanAbsolutePercentageError(name="MAPE"),
-        ]
-
-    # Compile the model
-    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
-    logger.info("Model compiled successfully")
-
+    logger.info(f"Compiled model with {optimizer_type} optimizer")
     return model
 
 def build_model(
     input_shape,
     num_outputs,
-    num_layers=3,
-    num_units=64,
-    dropout_rate=0.2,
-    activation="relu",
-    optimizer_type="adam",
-    learning_rate=0.001,
-    weight_initializer="glorot_uniform",
-    l1_reg=0.0,
-    l2_reg=0.0,
-    use_batch_norm=False,
-    momentum=0.0,
+    num_layers=DEFAULT_NUM_LAYERS,
+    num_units=DEFAULT_NUM_UNITS,
+    dropout_rate=DEFAULT_DROPOUT_RATE,
+    activation=DEFAULT_ACTIVATION,
+    optimizer_type=DEFAULT_OPTIMIZER_TYPE,
+    learning_rate=DEFAULT_LEARNING_RATE,
+    weight_initializer=DEFAULT_WEIGHT_INITIALIZER,
+    l1_reg=DEFAULT_L1_REG,
+    l2_reg=DEFAULT_L2_REG,
+    use_batch_norm=DEFAULT_USE_BATCH_NORM,
+    momentum=DEFAULT_MOMENTUM,
     **kwargs
 ):
+    """
+    Creates and compiles an MLP model with the specified parameters.
+    
+    Combines create_mlp_model and compile_model functions.
+    """
     model = create_mlp_model(
         input_shape=input_shape,
         num_outputs=num_outputs,
@@ -242,23 +224,24 @@ def build_model(
         l2_reg=l2_reg,
         use_batch_norm=use_batch_norm,
     )
+    
     model = compile_model(
-        model,
+        model=model,
         optimizer_type=optimizer_type,
         learning_rate=learning_rate,
         momentum=momentum,
-        loss_function='mse',
+        loss_function=DEFAULT_LOSS_FUNCTION,
     )
     return model
 
 def get_callbacks(
-    use_learning_rate_decay=False,
-    initial_learning_rate=0.001,
-    use_early_stopping=False,
-    early_stopping_patience=10,
-    use_pruning=False,
+    use_learning_rate_decay=DEFAULT_USE_LEARNING_RATE_DECAY,
+    initial_learning_rate=DEFAULT_LEARNING_RATE,
+    use_early_stopping=DEFAULT_USE_EARLY_STOPPING,
+    early_stopping_patience=TRAINER_EARLY_STOPPING_PATIENCE,
+    use_pruning=TRAINER_USE_PRUNING,
     trial=None,
-    monitor_metric='val_loss',
+    monitor_metric=TRAINER_MONITOR_METRIC,
 ):
     """
     Retorna una lista de callbacks para el entrenamiento del modelo.
@@ -288,29 +271,36 @@ def get_callbacks(
     callbacks = []
 
     if use_learning_rate_decay:
+        # Time-based learning rate decay
         def time_based_decay(epoch, lr):
-            decay = initial_learning_rate / (1 + epoch)
-            return decay
+            return initial_learning_rate / (1 + TRAINER_LR_DECAY_FACTOR * epoch)
+
         lr_scheduler = LearningRateScheduler(time_based_decay)
         callbacks.append(lr_scheduler)
-        logger.info("Using time-based learning rate decay.")
+
+        # Alternative: ReduceLROnPlateau
+        # lr_reducer = ReduceLROnPlateau(
+        #     monitor=monitor_metric,
+        #     factor=TRAINER_LR_DECAY_FACTOR,
+        #     patience=TRAINER_LR_DECAY_PATIENCE,
+        #     verbose=1,
+        #     mode='min'
+        # )
+        # callbacks.append(lr_reducer)
 
     if use_early_stopping:
         early_stopping = EarlyStopping(
             monitor=monitor_metric,
             patience=early_stopping_patience,
+            verbose=1,
             restore_best_weights=True
         )
         callbacks.append(early_stopping)
-        logger.info("Using early stopping.")
 
-    if use_pruning:
-        if trial is None:
-            error_msg = "Trial must be provided when use_pruning is True."
-            logger.error(error_msg)
-            raise ValueError(error_msg)
-        pruning_callback = TFKerasPruningCallback(trial, monitor=monitor_metric)
+    if use_pruning and trial is not None:
+        pruning_callback = optuna.integration.TFKerasPruningCallback(
+            trial, monitor_metric
+        )
         callbacks.append(pruning_callback)
-        logger.info("Using Optuna pruning callback.")
 
     return callbacks

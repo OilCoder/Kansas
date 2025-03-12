@@ -19,6 +19,9 @@ from ..utils.utils import get_preprocessor
 from .model import create_mlp_model, compile_model
 from keras.models import load_model
 
+# Import hyperparameters
+from .hyperparameters import DEFAULT_BATCH_SIZE
+
 logger = logging.getLogger(__name__)
 
 

@@ -81,6 +81,12 @@ from sklearn.model_selection import KFold
 from sklearn.pipeline import Pipeline
 from src.neural_network.model import build_model, get_callbacks  # Asegúrate de que la ruta de importación sea correcta
 
+# Import hyperparameters
+from .hyperparameters import (
+    RANDOM_SEED, DEFAULT_EPOCHS, DEFAULT_BATCH_SIZE, 
+    TRAINER_EARLY_STOPPING_PATIENCE
+)
+
 logger = logging.getLogger(__name__)
 
 def train_final_model(
@@ -134,9 +140,9 @@ def train_final_model(
     activation = best_params.get('activation', 'relu')
     optimizer_type = best_params.get('optimizer_type', 'adam').lower()
     learning_rate = best_params.get('learning_rate', 0.001)
-    batch_size = best_params.get('batch_size', 32)
+    batch_size = best_params.get('batch_size', DEFAULT_BATCH_SIZE)
     use_learning_rate_decay = best_params.get('use_learning_rate_decay', False)
-    epochs = best_params.get('epochs', 100)
+    epochs = best_params.get('epochs', DEFAULT_EPOCHS)
 
     # Extraer nuevos hiperparámetros con valores predeterminados
     weight_initializer = best_params.get('weight_initializer', 'glorot_uniform')
@@ -185,7 +191,7 @@ def train_final_model(
         use_learning_rate_decay=use_learning_rate_decay,
         initial_learning_rate=learning_rate,
         use_early_stopping=True,
-        early_stopping_patience=10,
+        early_stopping_patience=TRAINER_EARLY_STOPPING_PATIENCE,
         use_pruning=False,  # No usar pruning durante el entrenamiento final
     )
 
@@ -212,3 +218,95 @@ def train_final_model(
 
     logger.info("Entrenamiento final del modelo completado")
     return model, history
+
+def cross_validate_model(best_params, X, y, preprocessor, cv_splits=5):
+    """
+    Realiza validación cruzada utilizando los mejores hiperparámetros para evaluar el rendimiento del modelo.
+
+    Parámetros:
+    -----------
+    best_params : dict
+        Diccionario con los mejores hiperparámetros.
+    X : pandas.DataFrame
+        Características de entrada.
+    y : pandas.DataFrame o pandas.Series
+        Objetivo.
+    preprocessor : sklearn.pipeline.Pipeline
+        Pipeline de preprocesamiento.
+    cv_splits : int, opcional
+        Número de divisiones para la validación cruzada (default es 5).
+
+    Retorna:
+    --------
+    scores : list
+        Lista de puntuaciones para cada fold.
+    avg_score : float
+        Puntuación promedio a través de todos los folds.
+    """
+    logger.info(f"Realizando validación cruzada con {cv_splits} folds")
+    
+    scores = []
+    kf = KFold(n_splits=cv_splits, shuffle=True, random_state=RANDOM_SEED)
+    
+    for fold, (train_index, val_index) in enumerate(kf.split(X), start=1):
+        logger.info(f"Fold {fold}/{cv_splits}")
+        X_train, X_val = X.iloc[train_index], X.iloc[val_index]
+        y_train, y_val = y.iloc[train_index], y.iloc[val_index]
+        
+        # Fit the preprocessor on training data
+        preprocessor.fit(X_train)
+        X_train_processed = preprocessor.transform(X_train)
+        X_val_processed = preprocessor.transform(X_val)
+        
+        # Determine number of outputs
+        if len(y.shape) == 1:
+            num_outputs = 1
+        else:
+            num_outputs = y.shape[1]
+        
+        # Build model with best parameters
+        model = build_model(
+            input_shape=X_train_processed.shape[1],
+            num_outputs=num_outputs,
+            **best_params
+        )
+        
+        # Get callbacks
+        use_learning_rate_decay = best_params.get('use_learning_rate_decay', False)
+        initial_learning_rate = best_params.get('learning_rate', 0.001)
+        
+        callbacks = get_callbacks(
+            use_learning_rate_decay=use_learning_rate_decay,
+            initial_learning_rate=initial_learning_rate,
+            use_early_stopping=True,
+            early_stopping_patience=TRAINER_EARLY_STOPPING_PATIENCE,
+            use_pruning=False,
+        )
+        
+        # Train model
+        epochs = best_params.get('epochs', DEFAULT_EPOCHS)
+        batch_size = best_params.get('batch_size', DEFAULT_BATCH_SIZE)
+        
+        model.fit(
+            X_train_processed,
+            y_train,
+            validation_data=(X_val_processed, y_val),
+            epochs=epochs,
+            batch_size=batch_size,
+            callbacks=callbacks,
+            verbose=0
+        )
+        
+        # Evaluate model
+        val_score = model.evaluate(X_val_processed, y_val, verbose=0)
+        if isinstance(val_score, list):
+            val_score = val_score[0]  # Extract loss
+        
+        scores.append(val_score)
+        logger.info(f"Fold {fold} score: {val_score:.4f}")
+    
+    avg_score = np.mean(scores)
+    std_score = np.std(scores)
+    logger.info(f"Validación cruzada completada. Puntuación promedio: {avg_score:.4f} ± {std_score:.4f}")
+    
+    return scores, avg_score

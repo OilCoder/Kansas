@@ -9,9 +9,12 @@ from src.neural_network.optimizer import optimize_hyperparameters
 from src.neural_network.trainer import train_final_model
 from src.neural_network.model import build_model, get_callbacks
 
+# Import hyperparameters
+from .hyperparameters import CV_SPLITS, RANDOM_SEED, DEFAULT_EPOCHS, DEFAULT_BATCH_SIZE
+
 logger = logging.getLogger(__name__)
 
-def cross_validate_top_configs(top_configs, X, y, preprocessor, cv_splits=5):
+def cross_validate_top_configs(top_configs, X, y, preprocessor, cv_splits=CV_SPLITS):
     """
     Realiza validación cruzada para las mejores configuraciones de hiperparámetros.
 
@@ -37,7 +40,7 @@ def cross_validate_top_configs(top_configs, X, y, preprocessor, cv_splits=5):
     for idx, config in enumerate(top_configs, start=1):
         logger.info(f"Cross-validando hiperparámetros {idx}/{len(top_configs)}: {config}")
         scores = []
-        kf = KFold(n_splits=cv_splits, shuffle=True, random_state=42)
+        kf = KFold(n_splits=cv_splits, shuffle=True, random_state=RANDOM_SEED)
         
         for fold, (train_index, val_index) in enumerate(kf.split(X), start=1):
             logger.info(f"  Fold {fold}/{cv_splits}")
@@ -87,8 +90,8 @@ def cross_validate_top_configs(top_configs, X, y, preprocessor, cv_splits=5):
                 X_train_processed,
                 y_train,
                 validation_data=(X_val_processed, y_val),
-                batch_size=config.get('batch_size', 32),
-                epochs=config.get('epochs', 100),
+                batch_size=config.get('batch_size', DEFAULT_BATCH_SIZE),
+                epochs=config.get('epochs', DEFAULT_EPOCHS),
                 callbacks=callbacks,
                 verbose=0,
             )
