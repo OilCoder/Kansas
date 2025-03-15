@@ -29,7 +29,7 @@ from sklearn.ensemble import IsolationForest
 from sklearn.cluster import DBSCAN
 from scipy import stats
 from sklearn.neighbors import LocalOutlierFactor
-from pandas.api.types import is_any_real_numeric_dtype
+# from pandas.api.types import is_any_real_numeric_dtype
 
 # region LASIO Supress stdout
 # SuppressOutput context manager
@@ -562,6 +562,7 @@ class ProjectManager:
         """
         Prepares data for machine learning by filtering outliers, ordering curves according to mapping,
         merging 'Cali' curves by taking maximum, adding 'Formation' column, and removing rows with NaN values.
+        Also adds well coordinates (latitude and longitude) as additional columns.
 
         Args:
             min_methods (int): Minimum number of methods that must flag a data point as an outlier.
@@ -629,6 +630,26 @@ class ProjectManager:
                     # For other groups, keep individual curves
                     for curve in available_curves:
                         prepared_df[curve] = filtered_df[curve]
+
+            # Extract well coordinates from header
+            try:
+                latitude = well.header.loc[well.header['mnemonic'] == 'LAT', 'value'].values[0]
+                longitude = well.header.loc[well.header['mnemonic'] == 'LONG', 'value'].values[0]
+                
+                # Convert to numeric values if they are strings
+                if isinstance(latitude, str):
+                    latitude = float(latitude)
+                if isinstance(longitude, str):
+                    longitude = float(longitude)
+                
+                # Add coordinates as columns to every row
+                prepared_df['Latitude'] = latitude
+                prepared_df['Longitude'] = longitude
+            except (IndexError, ValueError) as e:
+                print(f"Warning: Could not extract coordinates for well '{lease_name}': {e}")
+                # Set default values if coordinates are not available
+                prepared_df['Latitude'] = np.nan
+                prepared_df['Longitude'] = np.nan
 
             # Add 'Formation' column based on formation_data
             if lease_name in self.formation_data:

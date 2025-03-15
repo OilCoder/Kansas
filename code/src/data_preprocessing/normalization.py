@@ -2,7 +2,8 @@ import logging
 import numpy as np
 import pandas as pd
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import RobustScaler, PowerTransformer, OneHotEncoder
+from cuml.preprocessing import StandardScaler, RobustScaler
+from sklearn.preprocessing import PowerTransformer, OneHotEncoder
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.feature_selection import VarianceThreshold
@@ -55,23 +56,23 @@ def get_preprocessor(engineered_data, feature_info):
             if pd.api.types.is_numeric_dtype(series):
                 if series.min() < 0:
                     yeo_johnson_features.append(feature_name)
-                    scaler_info[feature_name] = 'Yeo-Johnson + RobustScaler'
+                    scaler_info[feature_name] = 'Yeo-Johnson + RobustScaler (GPU)'
                 else:
                     if abs(series.skew()) > 1:
                         # Ensure Box-Cox is only applied to strictly positive data
                         if series.min() > 0:
                             box_cox_features.append(feature_name)
-                            scaler_info[feature_name] = 'Box-Cox + RobustScaler'
+                            scaler_info[feature_name] = 'Box-Cox + RobustScaler (GPU)'
                         else:
                             logger.warning(
                                 f"Feature '{feature_name}' has min value <= 0; cannot apply Box-Cox. "
                                 "Applying Yeo-Johnson instead."
                             )
                             yeo_johnson_features.append(feature_name)
-                            scaler_info[feature_name] = 'Yeo-Johnson + RobustScaler'
+                            scaler_info[feature_name] = 'Yeo-Johnson + RobustScaler (GPU)'
                     else:
                         robust_scaler_features.append(feature_name)
-                        scaler_info[feature_name] = 'RobustScaler'
+                        scaler_info[feature_name] = 'RobustScaler (GPU)'
             else:
                 no_scaling_features.append(feature_name)
                 scaler_info[feature_name] = 'No scaling'

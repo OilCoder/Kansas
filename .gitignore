@@ -1,5 +1,6 @@
 # Ignore everything in the data directory
 data/*
+.cursor/*
 
 # But, do not ignore these specific folders
 !data/v1.0_raw_data/Morel/

@@ -10,7 +10,11 @@ This project focuses on preparing `.las` (Log ASCII Standard) files for machine 
 2. [Installation](#installation)
    - [System Requirements](#system-requirements)
    - [Docker Environment Setup](#docker-environment-setup)
-3. [Methodology](#methodology)
+3. [Performance Optimizations](#performance-optimizations)
+   - [GPU Acceleration](#gpu-acceleration)
+   - [Preprocessing Speed](#preprocessing-speed)
+   - [Parallelized Cross-Validation](#parallelized-cross-validation)
+4. [Methodology](#methodology)
    - [Download and Prepare Data](#download-and-prepare-data)
    - [Field Selection](#field-selection)
    - [Exploration of Variables and Curves](#exploration-of-variables-and-curves)
@@ -18,10 +22,10 @@ This project focuses on preparing `.las` (Log ASCII Standard) files for machine 
    - [Statistical Analysis by Field](#statistical-analysis-by-field)
    - [Outlier Detection](#outlier-detection)
    - [Data Cleaning](#data-cleaning)
-4. [Project Structure](#project-structure)
-5. [Usage](#usage)
-6. [Contributing](#contributing)
-7. [License](#license)
+5. [Project Structure](#project-structure)
+6. [Usage](#usage)
+7. [Contributing](#contributing)
+8. [License](#license)
 
 ## Data Source
 
@@ -67,6 +71,57 @@ Ensure your system meets the following requirements:
    pip install welly lasio striplog missingno
    conda install -c conda-forge ipywidgets pandas numpy matplotlib seaborn plotly scikit-learn tensorflow scipy -y
    ```
+
+## Performance Optimizations
+
+The project has been optimized for high-performance computing with GPU acceleration and parallel processing capabilities.
+
+### GPU Acceleration
+
+TensorFlow has been configured with the following optimizations to maximize GPU utilization:
+
+- **Soft Device Placement**: Enabled to prevent automatic fallback to CPU when operations aren't available on GPU
+  ```python
+  tf.config.set_soft_device_placement(True)
+  ```
+
+- **Mixed Precision Training**: Implemented to speed up computation and reduce memory usage
+  ```python
+  from tensorflow.keras.mixed_precision import set_global_policy
+  set_global_policy('mixed_float16')
+  ```
+
+- **XLA Compilation**: Accelerated Linear Algebra compiler enabled for optimized computation
+  ```python
+  tf.config.optimizer.set_jit(True)
+  ```
+
+### Preprocessing Speed
+
+Data preprocessing has been accelerated using GPU-based libraries:
+
+- **cuML Integration**: Replaced scikit-learn's CPU-based scalers with cuML's GPU-accelerated versions
+  ```python
+  from cuml.preprocessing import StandardScaler, RobustScaler
+  ```
+
+- **GPU-Accelerated Transformations**: All data transformations in the preprocessing pipeline leverage GPU acceleration where possible
+
+### Parallelized Cross-Validation
+
+Cross-validation has been optimized for multi-core CPU utilization:
+
+- **Joblib Parallelization**: K-fold cross-validation now runs in parallel across all available CPU cores
+  ```python
+  from joblib import Parallel, delayed
+  
+  scores = Parallel(n_jobs=-1)(
+      delayed(train_and_evaluate)(fold, train_index, val_index, X, y, best_params, preprocessor)
+      for fold, (train_index, val_index) in fold_indices
+  )
+  ```
+
+- **Efficient Resource Utilization**: The system automatically balances workloads between CPU cores for optimal performance
 
 ## Methodology
 
@@ -205,3 +260,68 @@ Contributions are welcome. Please use the fork-and-pull request workflow to subm
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.
+
+# RAPIDS GPU-Accelerated Data Science Environment
+
+This is a RAPIDS environment running in a Docker container with access to NVIDIA GPU acceleration.
+
+## Environment Details
+
+- RAPIDS Version: 24.08
+- CUDA Version: 12.7
+- Python Version: 3.11
+- GPU: NVIDIA GeForce RTX 4080
+
+## Available Libraries
+
+- **cuDF**: GPU-accelerated DataFrame library (like pandas)
+- **cuML**: GPU-accelerated Machine Learning (like scikit-learn)
+- **cuGraph**: GPU-accelerated Graph Analytics
+- **cuSpatial**: GPU-accelerated Spatial and Geospatial Analytics
+- **XGBoost**: GPU-accelerated Gradient Boosting
+
+## Example Usage
+
+See `rapids_test.py` for a simple example of using cuDF and cuML.
+
+### Basic cuDF Example
+
+```python
+import cudf
+import numpy as np
+
+# Create a GPU DataFrame
+df = cudf.DataFrame({
+    'A': np.random.randint(0, 100, size=1000000),
+    'B': np.random.normal(0, 1, size=1000000)
+})
+
+# Perform operations (runs on GPU)
+result = df.groupby('A').mean()
+print(result.head())
+```
+
+### Basic cuML Example
+
+```python
+from cuml.neighbors import NearestNeighbors
+import numpy as np
+
+# Create sample data
+X = np.random.random((10000, 50)).astype(np.float32)
+
+# Create and fit KNN model on GPU
+knn_cuml = NearestNeighbors(n_neighbors=5)
+knn_cuml.fit(X)
+
+# Query nearest neighbors
+distances, indices = knn_cuml.kneighbors(X[:5])
+print(distances)
+```
+
+## Useful Resources
+
+- [RAPIDS Documentation](https://docs.rapids.ai/)
+- [cuDF Documentation](https://docs.rapids.ai/api/cudf/stable/)
+- [cuML Documentation](https://docs.rapids.ai/api/cuml/stable/)
+- [RAPIDS Notebooks](https://github.com/rapidsai/notebooks)

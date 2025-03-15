@@ -8,7 +8,7 @@ Central configuration file for all hyperparameters used in our MLP model (and po
 # ----------------------------------------------------------------------------------
 # General settings
 # ----------------------------------------------------------------------------------
-RANDOM_SEED = 42  # Random seed for reproducibility
+RANDOM_SEED = 57  # Random seed for reproducibility
 MIN_CURVES = 5    # Minimum number of curves a well must have to be included
 
 # ----------------------------------------------------------------------------------
@@ -51,9 +51,9 @@ TRAINER_USE_PRUNING = False           # Whether to use pruning (Optuna) during t
 # ----------------------------------------------------------------------------------
 # Optimization hyperparameters
 # ----------------------------------------------------------------------------------
-OPTIM_N_TRIALS = 5         # Number of optimization trials
-OPTIM_TOP_N = -1           # Number of top configurations to select
-OPTIM_N_JOBS = 12          # Number of parallel jobs for optimization (75% of core avaliables in CPU)
+OPTIM_N_TRIALS = 500        # Number of optimization trials
+OPTIM_TOP_N = 2           # Number of top configurations to select
+OPTIM_N_JOBS = 12          # Number of parallel jobs for optimization
 
 # ----------------------------------------------------------------------------------
 # Hyperparameter search spaces

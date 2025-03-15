@@ -222,7 +222,7 @@ def pipeline(data, selected_curves, curves_to_predict, unique_formations):
 
     # Step 5: Initial Hyperparameter Optimization
     logger.info("Step 5: Starting initial hyperparameter optimization...")
-    study, top_configs = optimize_hyperparameters(X, y, preprocessor)
+    top_configs = optimize_hyperparameters(X, y, preprocessor)
     logger.info(f"    Initial hyperparameter optimization completed.")
 
     # Step 6: Cross-Validation of Top Hyperparameters
