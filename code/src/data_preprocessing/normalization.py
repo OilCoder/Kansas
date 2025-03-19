@@ -19,7 +19,7 @@ def get_preprocessor(engineered_data, feature_info):
     engineered_data : dict
         Dictionary containing the engineered feature DataFrames for each well.
     feature_info : dict
-        Dictionary mapping feature names to their types ('categorical' or 'numerical').
+        Dictionary mapping feature names to their types ('categorical', 'numerical', or 'coordinate').
 
     Returns:
     --------
@@ -35,6 +35,7 @@ def get_preprocessor(engineered_data, feature_info):
     yeo_johnson_features = []
     box_cox_features = []
     robust_scaler_features = []
+    coordinate_features = []
     no_scaling_features = []
 
     scaler_info = {}
@@ -50,6 +51,9 @@ def get_preprocessor(engineered_data, feature_info):
         if feature_info.get(feature_name) == 'categorical':
             no_scaling_features.append(feature_name)
             scaler_info[feature_name] = 'No scaling'
+        elif feature_info.get(feature_name) == 'coordinate':
+            coordinate_features.append(feature_name)
+            scaler_info[feature_name] = 'RobustScaler (GPU) - Coordinate'
         else:
             series = combined_df[feature_name]
 
@@ -80,6 +84,7 @@ def get_preprocessor(engineered_data, feature_info):
     logger.info(f"Yeo-Johnson features: {yeo_johnson_features}")
     logger.info(f"Box-Cox features: {box_cox_features}")
     logger.info(f"RobustScaler features: {robust_scaler_features}")
+    logger.info(f"Coordinate features: {coordinate_features}")
     logger.info(f"No scaling features: {no_scaling_features}")
 
     # Define transformers
@@ -110,6 +115,13 @@ def get_preprocessor(engineered_data, feature_info):
             'robust_scaler',
             RobustScaler(),
             robust_scaler_features
+        ))
+
+    if coordinate_features:
+        transformers.append((
+            'coordinate_scaler',
+            RobustScaler(),  # Use only RobustScaler for coordinates
+            coordinate_features
         ))
 
     if no_scaling_features:

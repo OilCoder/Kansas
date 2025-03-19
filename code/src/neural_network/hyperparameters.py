@@ -51,9 +51,9 @@ TRAINER_USE_PRUNING = False           # Whether to use pruning (Optuna) during t
 # ----------------------------------------------------------------------------------
 # Optimization hyperparameters
 # ----------------------------------------------------------------------------------
-OPTIM_N_TRIALS = 5         # Number of optimization trials
-OPTIM_TOP_N = -1           # Number of top configurations to select
-OPTIM_N_JOBS = 12          # Number of parallel jobs for optimization (75% of core avaliables in CPU)
+OPTIM_N_TRIALS = 500         # Number of optimization trials
+OPTIM_TOP_N = 2           # Number of top configurations to select
+OPTIM_N_JOBS = 1          # Number of parallel jobs for optimization (75% of core avaliables in CPU)
 
 # ----------------------------------------------------------------------------------
 # Hyperparameter search spaces
@@ -61,7 +61,9 @@ OPTIM_N_JOBS = 12          # Number of parallel jobs for optimization (75% of co
 # ----------------------------------------------------------------------------------
 
 # Range for the number of layers (depth of the MLP)
-OPTIM_NUM_LAYERS_RANGE = (1, 10)
+# OPTIM_NUM_LAYERS_RANGE = (1, 10)
+OPTIM_NUM_LAYERS_RANGE = (15, 20)  # Redes más profundas
+
 
 # Possible sizes for each hidden layer
 OPTIM_NUM_UNITS_OPTIONS = [32, 64, 128, 256, 512]
@@ -70,25 +72,33 @@ OPTIM_NUM_UNITS_OPTIONS = [32, 64, 128, 256, 512]
 OPTIM_USE_SKIP_CONNECTIONS_OPTIONS = [True, False]
 
 # Whether to use highway networks
-OPTIM_USE_HIGHWAY_OPTIONS = [True, False]
+# OPTIM_USE_HIGHWAY_OPTIONS = [True, False]
+OPTIM_USE_HIGHWAY_OPTIONS = [True]  # Forzamos Highway Networks
+
 
 # Range for dropout rate
-OPTIM_DROPOUT_RATE_RANGE = (0.0, 0.6)
+# OPTIM_DROPOUT_RATE_RANGE = (0.0, 0.6)
+OPTIM_DROPOUT_RATE_RANGE = (0.1, 0.4)  # Más dropout para evitar sobreajuste
+
 
 # Possible activation functions
-OPTIM_ACTIVATION_OPTIONS = ["relu", "leaky_relu", "tanh", "elu", "sigmoid"]
+OPTIM_ACTIVATION_OPTIONS = ["leaky_relu", "elu", "sigmoid"]
 
 # Possible optimizers
-OPTIM_OPTIMIZER_OPTIONS = ["adam", "sgd", "rmsprop"]
+OPTIM_OPTIMIZER_OPTIONS = ["adam", "rmsprop"]
 
 # Range for the learning rate (log scale friendly)
-OPTIM_LEARNING_RATE_RANGE = (1e-5, 1e-2)
+# OPTIM_LEARNING_RATE_RANGE = (1e-5, 1e-2)
+OPTIM_LEARNING_RATE_RANGE = (1e-4, 5e-3)  # Learning rate más bajo para redes profundas
+
 
 # Possible batch sizes
-OPTIM_BATCH_SIZE_OPTIONS = [128, 256, 512, 1024]
+# OPTIM_BATCH_SIZE_OPTIONS = [64, 128, 256, 512]
+OPTIM_BATCH_SIZE_OPTIONS = [64, 128]  # Reducimos batch size para evitar problemas de memoria
+
 
 # Range for the number of epochs
-OPTIM_EPOCHS_RANGE = (30, 100)
+OPTIM_EPOCHS_RANGE = (30, 80)
 
 # Possible weight initializer methods
 OPTIM_WEIGHT_INITIALIZER_OPTIONS = [

@@ -105,6 +105,25 @@ def pipeline(data, selected_curves, curves_to_predict, unique_formations):
         - engineered_data: Dictionary containing the engineered features
         - preprocessor: The fitted preprocessor object
     """
+    # Step 0: Setup - Configure logging first
+    current_dir = os.path.dirname(__file__)  # This gives you 'code/src/neural_network'
+    log_dir = os.path.join(current_dir, 'files')  # This sets log_dir to 'code/src/neural_network/files'
+    log_file = os.path.join(log_dir, 'neural_network.log')
+    
+    # Ensure the log directory exists
+    os.makedirs(log_dir, exist_ok=True)
+    
+    configure_logging(log_file)
+    
+    # Re-get the logger after configuration
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info("Starting the pipeline...")
+    
+    # Set random seed for reproducibility
+    set_random_seed(RANDOM_SEED)
+    logger.info(f"Random seed set to {RANDOM_SEED}")
+    
     import tensorflow as tf
 
     gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -115,22 +134,15 @@ def pipeline(data, selected_curves, curves_to_predict, unique_formations):
         except RuntimeError as e:
             print(e)
 
-    # Step 0: Setup
-    current_dir = os.path.dirname(__file__)  # This gives you 'code/src/neural_network'
-    log_dir = os.path.join(current_dir, 'files')  # This sets log_dir to 'code/src/neural_network/files'
-    log_file = os.path.join(log_dir, 'neural_network.log')
-
-    # Ensure the log directory exists
-    os.makedirs(log_dir, exist_ok=True)
-
-    configure_logging(log_file)
-
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.info("Starting the pipeline...")
+    # Enable mixed precision training
+    from tensorflow.keras.mixed_precision import set_global_policy
+    set_global_policy('mixed_float16')
+    logger.info("Mixed precision (float16) enabled")
     
-    set_random_seed(RANDOM_SEED)
-
+    # Enable XLA JIT compilation
+    tf.config.optimizer.set_jit(True)
+    logger.info("XLA JIT compilation enabled")
+    
     # Step 0: Pipeline Configuration
     logger.info("Step 0: Pipeline Configuration")
     logger.info(f"    Number of wells in input data: {len(data)}")
@@ -219,6 +231,11 @@ def pipeline(data, selected_curves, curves_to_predict, unique_formations):
     y = pd.concat(y_list, ignore_index=True)
 
     logger.info("    Data preparation completed.")
+
+    # Fit the preprocessor on all training data
+    logger.info("    Fitting preprocessor on training data...")
+    preprocessor.fit(X)
+    logger.info("    Preprocessor fitted.")
 
     # Step 5: Initial Hyperparameter Optimization
     logger.info("Step 5: Starting initial hyperparameter optimization...")

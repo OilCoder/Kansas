@@ -237,51 +237,52 @@ def create_mlp_model(
         
         # Apply skip connection or highway gating if enabled
         if use_skip_connections:
-            # For skip connections, we need to match dimensions if they're different
+            # For skip connections, ensure dimensions match
             if layer_input.shape[-1] != layer_sizes[i]:
-                # Project input to match output dimension
                 layer_input = Dense(
                     layer_sizes[i],
                     kernel_initializer=weight_initializer,
                     kernel_regularizer=regularizer,
-                    activation='linear'
+                    activation='linear',
+                    name=f'skip_projection_{i}'
                 )(layer_input)
-            
-            # Add the skip connection: x + f(x)
-            x = Add()([layer_input, dense_output])
+            x = Add(name=f'skip_connection_{i}')([layer_input, dense_output])
             
         elif use_highway:
-            # For highway networks, we need a transform gate
+            # For highway networks, ensure dimensions match
             if layer_input.shape[-1] != layer_sizes[i]:
-                # Project input to match output dimension
                 layer_input = Dense(
                     layer_sizes[i],
                     kernel_initializer=weight_initializer,
                     kernel_regularizer=regularizer,
-                    activation='linear'
+                    activation='linear',
+                    name=f'highway_projection_{i}'
                 )(layer_input)
             
-            # Create carry gate: sigmoid(Wc * x + bc)
-            carry_gate = Dense(
+            # Create transform gate with proper initialization
+            transform_gate = Dense(
                 layer_sizes[i],
+                activation='sigmoid',
+                bias_initializer='zeros',  # Changed to zeros to start with carry behavior
                 kernel_initializer=weight_initializer,
                 kernel_regularizer=regularizer,
-                activation='sigmoid'
+                name=f'highway_transform_gate_{i}'
             )(layer_input)
             
-            # Highway network formula: carry_gate * transform + (1 - carry_gate) * input
-            gated_output = Multiply()([carry_gate, dense_output])
-            inverse_gate = Lambda(lambda x: 1.0 - x)(carry_gate)
-            carry_input = Multiply()([inverse_gate, layer_input])
-            x = Add()([gated_output, carry_input])
+            # Highway network formula: t * H(x) + (1 - t) * x
+            transformed = Multiply(name=f'highway_transform_{i}')([transform_gate, dense_output])
+            carried = Multiply(name=f'highway_carry_{i}')([
+                Lambda(lambda x: 1.0 - x, name=f'highway_carry_gate_{i}')(transform_gate),
+                layer_input
+            ])
+            x = Add(name=f'highway_merge_{i}')([transformed, carried])
         else:
-            # Standard feedforward: just use the dense output
             x = dense_output
 
     # Output layer (regression)
-    outputs = Dense(num_outputs, activation="linear")(x)
+    outputs = Dense(num_outputs, activation="linear", name='output')(x)
 
-    # Create the model
+    # Create and return the model
     model = Model(inputs=inputs, outputs=outputs)
     
     logger.info(f"Created MLP model with {num_layers} layers")

@@ -44,7 +44,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
 # Import from model.py
-from src.neural_network.model import build_model, get_callbacks
+from src.neural_network.model import create_mlp_model, compile_model, get_callbacks
 
 # Import hyperparameters
 from .hyperparameters import (
@@ -59,154 +59,164 @@ from .hyperparameters import (
     DEFAULT_NUM_LAYERS, DEFAULT_NUM_UNITS, DEFAULT_DROPOUT_RATE, DEFAULT_ACTIVATION,
     DEFAULT_OPTIMIZER_TYPE, DEFAULT_LEARNING_RATE, DEFAULT_USE_LEARNING_RATE_DECAY,
     DEFAULT_WEIGHT_INITIALIZER, DEFAULT_L1_REG, DEFAULT_L2_REG, DEFAULT_USE_BATCH_NORM,
-    DEFAULT_USE_SKIP_CONNECTIONS, DEFAULT_USE_HIGHWAY
+    DEFAULT_USE_SKIP_CONNECTIONS, DEFAULT_USE_HIGHWAY,
+    TRAINER_EARLY_STOPPING_PATIENCE, TRAINER_USE_PRUNING
 )
 
 logger = logging.getLogger(__name__)
 
+def suggest_hyperparameters(trial):
+    """
+    Suggests hyperparameters for a trial using the Optuna optimization framework.
+    """
+    # Number of layers
+    num_layers = trial.suggest_int('num_layers', *OPTIM_NUM_LAYERS_RANGE)
+    
+    # Base layer size - use this as the foundation for all layers
+    base_units = trial.suggest_categorical('base_units', OPTIM_NUM_UNITS_OPTIONS)
+    
+    # Create layer sizes that are multiples or fractions of the base size
+    layer_sizes = []
+    for i in range(num_layers):
+        # Use scaling factors that are powers of 2 to maintain compatibility
+        scale = trial.suggest_categorical(f'layer_{i}_scale', [0.5, 1.0, 2.0])
+        layer_size = int(base_units * scale)
+        layer_sizes.append(layer_size)
+    
+    # Architecture type (skip connections or highway)
+    use_skip_connections = trial.suggest_categorical('use_skip_connections', OPTIM_USE_SKIP_CONNECTIONS_OPTIONS)
+    use_highway = False if use_skip_connections else trial.suggest_categorical('use_highway', OPTIM_USE_HIGHWAY_OPTIONS)
+    
+    # Other hyperparameters
+    dropout_rate = trial.suggest_float('dropout_rate', *OPTIM_DROPOUT_RATE_RANGE)
+    activation = trial.suggest_categorical('activation', OPTIM_ACTIVATION_OPTIONS)
+    optimizer_type = trial.suggest_categorical('optimizer_type', OPTIM_OPTIMIZER_OPTIONS)
+    learning_rate = trial.suggest_float('learning_rate', *OPTIM_LEARNING_RATE_RANGE, log=True)
+    batch_size = trial.suggest_categorical('batch_size', OPTIM_BATCH_SIZE_OPTIONS)
+    weight_initializer = trial.suggest_categorical('weight_initializer', OPTIM_WEIGHT_INITIALIZER_OPTIONS)
+    
+    # Regularization
+    l1_reg = trial.suggest_float('l1_reg', *OPTIM_L1_REG_RANGE, log=True)
+    l2_reg = trial.suggest_float('l2_reg', *OPTIM_L2_REG_RANGE, log=True)
+    
+    # Use batch normalization
+    use_batch_norm = trial.suggest_categorical('use_batch_norm', [True, False])
+    
+    # Learning rate decay and early stopping
+    use_learning_rate_decay = trial.suggest_categorical('use_learning_rate_decay', [True, False])
+    use_early_stopping = trial.suggest_categorical('use_early_stopping', [True, False])
+    
+    # If using SGD, suggest momentum
+    momentum = trial.suggest_float('momentum', *OPTIM_MOMENTUM_RANGE) if optimizer_type == 'sgd' else 0.0
+    
+    # Number of epochs
+    epochs = trial.suggest_int('epochs', *OPTIM_EPOCHS_RANGE)
+    
+    return {
+        'num_layers': num_layers,
+        'layer_sizes': layer_sizes,
+        'dropout_rate': dropout_rate,
+        'activation': activation,
+        'optimizer_type': optimizer_type,
+        'learning_rate': learning_rate,
+        'batch_size': batch_size,
+        'weight_initializer': weight_initializer,
+        'l1_reg': l1_reg,
+        'l2_reg': l2_reg,
+        'use_batch_norm': use_batch_norm,
+        'use_skip_connections': use_skip_connections,
+        'use_highway': use_highway,
+        'use_learning_rate_decay': use_learning_rate_decay,
+        'use_early_stopping': use_early_stopping,
+        'momentum': momentum,
+        'epochs': epochs,
+    }
+
 def objective(trial, X, y, preprocessor):
     """
-    Objective function for Optuna that trains and evaluates the MLP model with hyperparameters suggested by the trial.
+    Objective function for hyperparameter optimization.
     
-    Parameters:
-    -----------
-    trial : optuna.Trial
-        Optuna trial object.
-    X : array-like
-        Input features.
-    y : array-like
-        Target values.
-    preprocessor : object
-        Data preprocessor.
-        
+    Args:
+        trial: Optuna trial object
+        X: Input features
+        y: Target variables
+        preprocessor: Preprocessor object
+    
     Returns:
-    --------
-    float
-        Validation loss.
+        float: Validation loss (to be minimized)
     """
-    logger.info(f"Starting trial {trial.number} for hyperparameter optimization")
-
+    # Get hyperparameters for this trial
+    params = suggest_hyperparameters(trial)
+    
+    # Split data into train and validation sets
+    X_train, X_valid, y_train, y_valid = train_test_split(
+        X, y,
+        test_size=0.2,
+        random_state=RANDOM_SEED
+    )
+    
+    # Preprocess the data
+    X_train_processed = preprocessor.transform(X_train)
+    X_valid_processed = preprocessor.transform(X_valid)
+    
+    # Create the model
+    model = create_mlp_model(
+        input_shape=(X_train_processed.shape[1],),
+        num_outputs=y.shape[1],
+        num_layers=params['num_layers'],
+        layer_sizes=params['layer_sizes'],
+        dropout_rate=params['dropout_rate'],
+        activation=params['activation'],
+        weight_initializer=params['weight_initializer'],
+        l1_reg=params['l1_reg'],
+        l2_reg=params['l2_reg'],
+        use_batch_norm=params['use_batch_norm'],
+        use_skip_connections=params['use_skip_connections'],
+        use_highway=params['use_highway']
+    )
+    
+    # Compile the model
+    model = compile_model(
+        model=model,
+        optimizer_type=params['optimizer_type'],
+        learning_rate=params['learning_rate'],
+        momentum=params['momentum']
+    )
+    
+    # Get callbacks for training
+    callbacks = get_callbacks(
+        use_learning_rate_decay=params['use_learning_rate_decay'],
+        initial_learning_rate=params['learning_rate'],
+        use_early_stopping=params['use_early_stopping'],
+        early_stopping_patience=TRAINER_EARLY_STOPPING_PATIENCE,
+        use_pruning=TRAINER_USE_PRUNING,
+        trial=trial,
+        monitor_metric='val_loss'
+    )
+    
+    # Train the model
     try:
-        # Suggest number of layers
-        num_layers = trial.suggest_int("num_layers", OPTIM_NUM_LAYERS_RANGE[0], OPTIM_NUM_LAYERS_RANGE[1])
-        
-        # Suggest number of units for each layer independently
-        layer_sizes = []
-        for i in range(num_layers):
-            layer_size = trial.suggest_categorical(f"layer_{i}_units", OPTIM_NUM_UNITS_OPTIONS)
-            layer_sizes.append(layer_size)
-        
-        # For backward compatibility, still suggest num_units (will be used if layer_sizes is None)
-        num_units = trial.suggest_categorical("num_units", OPTIM_NUM_UNITS_OPTIONS)
-        
-        # Other hyperparameters
-        dropout_rate = trial.suggest_float("dropout_rate", OPTIM_DROPOUT_RATE_RANGE[0], OPTIM_DROPOUT_RATE_RANGE[1], step=0.1)
-        activation = trial.suggest_categorical("activation", OPTIM_ACTIVATION_OPTIONS)
-        optimizer_type = trial.suggest_categorical("optimizer_type", OPTIM_OPTIMIZER_OPTIONS)
-        learning_rate = trial.suggest_float("learning_rate", OPTIM_LEARNING_RATE_RANGE[0], OPTIM_LEARNING_RATE_RANGE[1], log=True)
-        batch_size = trial.suggest_categorical("batch_size", OPTIM_BATCH_SIZE_OPTIONS)
-        use_learning_rate_decay = trial.suggest_categorical("use_learning_rate_decay", [True, False])
-        epochs = trial.suggest_int("epochs", OPTIM_EPOCHS_RANGE[0], OPTIM_EPOCHS_RANGE[1])
-
-        # New hyperparameters
-        weight_initializer = trial.suggest_categorical("weight_initializer", OPTIM_WEIGHT_INITIALIZER_OPTIONS)
-        l1_reg = trial.suggest_float("l1_reg", OPTIM_L1_REG_RANGE[0], OPTIM_L1_REG_RANGE[1], log=True)
-        l2_reg = trial.suggest_float("l2_reg", OPTIM_L2_REG_RANGE[0], OPTIM_L2_REG_RANGE[1], log=True)
-        use_batch_norm = trial.suggest_categorical("use_batch_norm", [True, False])
-        
-        # Architecture variations
-        connection_type = trial.suggest_categorical("connection_type", ["none", "skip", "highway"])
-        use_skip_connections = (connection_type == "skip")
-        use_highway = (connection_type == "highway")
-
-        # If optimizer_type is 'sgd', suggest momentum
-        if optimizer_type.lower() == "sgd":
-            momentum = trial.suggest_float("momentum", OPTIM_MOMENTUM_RANGE[0], OPTIM_MOMENTUM_RANGE[1], step=0.1)
-        else:
-            momentum = 0.0  # Default value
-
-        logger.debug(
-            f"Trial {trial.number} hyperparameters: num_layers={num_layers}, "
-            f"layer_sizes={layer_sizes}, dropout_rate={dropout_rate}, "
-            f"activation={activation}, optimizer_type={optimizer_type}, "
-            f"learning_rate={learning_rate}, batch_size={batch_size}, "
-            f"use_learning_rate_decay={use_learning_rate_decay}, epochs={epochs}, "
-            f"use_skip_connections={use_skip_connections}, use_highway={use_highway}"
-        )
-
-        # Split data into training and validation sets
-        X_train, X_valid, y_train, y_valid = train_test_split(
-            X, y, test_size=0.2, random_state=trial.number  # Use trial number for reproducibility
-        )
-
-        # Fit the preprocessor on the training data
-        preprocessor.fit(X_train)
-        X_train_processed = preprocessor.transform(X_train)
-        X_valid_processed = preprocessor.transform(X_valid)
-
-        # Determine number of outputs from y
-        num_outputs = y.shape[1] if len(y.shape) > 1 else 1
-
-        # Build and compile the model
-        model = build_model(
-            input_shape=(X_train_processed.shape[1],),
-            num_outputs=num_outputs,
-            num_layers=num_layers,
-            num_units=num_units,  # This will be ignored if layer_sizes is provided
-            dropout_rate=dropout_rate,
-            activation=activation,
-            optimizer_type=optimizer_type,
-            learning_rate=learning_rate,
-            weight_initializer=weight_initializer,
-            l1_reg=l1_reg,
-            l2_reg=l2_reg,
-            use_batch_norm=use_batch_norm,
-            momentum=momentum,
-            layer_sizes=layer_sizes,  # This will be used instead of num_units
-            use_skip_connections=use_skip_connections,
-            use_highway=use_highway,
-        )
-
-        # Get callbacks including pruning
-        callbacks = get_callbacks(
-            use_learning_rate_decay=use_learning_rate_decay,
-            initial_learning_rate=learning_rate,
-            use_early_stopping=True,
-            early_stopping_patience=5,
-            use_pruning=True,
-            trial=trial,
-            monitor_metric='val_loss',
-        )
-
-        # Train the model
         history = model.fit(
             X_train_processed,
             y_train,
             validation_data=(X_valid_processed, y_valid),
-            batch_size=batch_size,
-            epochs=epochs,
+            batch_size=params['batch_size'],
+            epochs=params['epochs'],
             callbacks=callbacks,
-            verbose=0,
+            verbose=0
         )
-
-        # Evaluate the model on validation data
-        val_loss = model.evaluate(X_valid_processed, y_valid, verbose=0)
-
-        # Extract only the loss value
-        if isinstance(val_loss, list):
-            val_loss = val_loss[0]
-
+        
+        # Get the best validation loss
+        val_loss = min(history.history['val_loss'])
+        
+        # Log the results
         logger.info(f"Trial {trial.number} completed with validation loss: {val_loss}")
+        
         return val_loss
-
-    except optuna.exceptions.TrialPruned as e:
-        logger.info(f"Trial {trial.number} was pruned: {e}")
-        raise
-
+        
     except Exception as e:
-        logger.error(f"Trial {trial.number} failed due to error: {str(e)}")
-        logger.exception("Exception details:")
-        raise
+        logger.error(f"Error in trial {trial.number}: {str(e)}")
+        raise optuna.exceptions.TrialPruned()
 
 def optimize_hyperparameters(X, y, preprocessor, n_trials=OPTIM_N_TRIALS, top_n=OPTIM_TOP_N):
     """
