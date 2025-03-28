@@ -5,7 +5,7 @@ alwaysApply: false
 ---
 # General Coding Pattern Preferences
 
-- Always prefer simple solutions.
+- Always prefer simple solutions. Do not create aditional functions. Simple is better.
 - Avoid duplication of code whenever possible, which means checking for other areas of the codebase that might already have similar code and functionality.
 - Write code that takes into account the different environments: dev, test, and prod.
 - You are careful to only make changes that are requested or you are confident are well understood and related to the change being requested.

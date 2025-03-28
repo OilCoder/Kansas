@@ -1,85 +1,3 @@
-"""
-Utility Module for Project Support
-----------------------------------
-
-This utility module contains helper functions and configurations that support various parts of the project. It 
-includes logging setup, seed setting for reproducibility, and other common utilities used across different modules.
-
-Functions:
-----------
-
-set_random_seed(seed=42):
-    Purpose:
-        Sets the random seed for Python, NumPy, and TensorFlow to ensure reproducible results.
-    Parameters:
-        seed (int): The seed value to set.
-    Returns:
-        None
-    Comments:
-        Helps in obtaining consistent results across different runs.
-
-get_preprocessor():
-    Purpose:
-        Creates and returns a preprocessing pipeline for data transformation.
-    Parameters:
-        None
-    Returns:
-        preprocessor (Pipeline): A scikit-learn Pipeline object that handles data preprocessing.
-    Comments:
-        Includes steps like scaling, encoding, and imputation as necessary.
-
-configure_logging(log_file='neural_network.log'):
-    Purpose:
-        Sets up logging configuration to record training progress and debug information.
-    Parameters:
-        log_file (str): Path to the log file.
-    Returns:
-        None
-    Comments:
-        Configures logging levels and formats.
-
-save_model(model, file_path):
-    Purpose:
-        Saves the trained model to the specified file path.
-    Parameters:
-        model: The trained Keras model.
-        file_path (str): Destination file path to save the model.
-    Returns:
-        None
-    Comments:
-        Allows for saving models for later use or deployment.
-
-Workflow:
----------
-1. Before Training:
-    - Call `set_random_seed` to ensure reproducibility.
-    - Configure logging using `configure_logging`.
-    - Obtain the preprocessor using `get_preprocessor`.
-
-2. After Training:
-    - Use `save_model` to persist the trained model.
-
-Errors to Avoid:
-----------------
-- Inconsistent Seeds:
-    Failing to set seeds can lead to non-reproducible results.
-- Logging Conflicts:
-    Ensure that logging is configured only once to prevent duplicate log entries.
-
-Comments:
----------
-- Additional Utilities:
-    Add any other helper functions that are commonly used across modules to this file.
-- Versioning:
-    Consider adding functions to log versions of libraries and dependencies for full reproducibility.
-
-Utility Module for Project Support
-----------------------------------
-
-This utility module contains helper functions and configurations that support various parts of the project. It 
-includes logging setup, seed setting for reproducibility, and other common utilities used across different modules.
-"""
-
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Suppress INFO and WARNING messages
 
@@ -214,7 +132,7 @@ def configure_logging(log_file='src/neural_network/files/neural_network.log'):
     logger = logging.getLogger(__name__)
     logger.info("Logging configured with pretty format")
 
-def set_random_seed(seed=42):
+def set_random_seed(seed=None):
     """
     Sets the random seed for reproducibility.
 
@@ -236,21 +154,3 @@ def set_random_seed(seed=42):
     np.random.seed(seed)
     tf.random.set_seed(seed)
 
-# def save_model(model, filename='model.h5'):
-#     """
-#     Saves the trained Keras model to a file.
-
-#     Parameters:
-#     -----------
-#     model : keras.Model
-#         The Keras model to save.
-#     filename : str, optional
-#         The filename for the saved model (default is 'model.h5').
-
-#     Returns:
-#     --------
-#     None
-#     """
-#     logger.info(f"Saving model to {filename}")
-#     model.save(filename)
-#     logger.info("Model saved successfully")

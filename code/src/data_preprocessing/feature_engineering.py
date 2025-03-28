@@ -1,449 +1,476 @@
-import pandas as pd
-import numpy as np
-from scipy.ndimage import gaussian_filter
-from sklearn.cluster import KMeans, AgglomerativeClustering
-from sklearn.impute import SimpleImputer
 import logging
-from scipy import stats, signal, fft
-from scipy.spatial.distance import pdist, squareform
+import numpy as np
+import pandas as pd
+from scipy.ndimage import gaussian_filter
+from scipy import fft
+from sklearn.impute import SimpleImputer
+from sklearn.cluster import KMeans, AgglomerativeClustering
 
-# ------------------------- Feature Generation Function ------------------------- #
-
-def generate_features(train_validation_data, selected_curves, unique_formations, window_size=20, num_clusters=15):
+def generate_features(train_validation_data, selected_curves, curves_to_predict, 
+                      window_size=20, num_clusters=15):
     """
-    Generates new features based on the selected curves, including petrophysical calculations
-    and appropriate encoding of the 'Formation' column based on the number of unique formations.
-    
-    Parameters:
-    - train_validation_data (dict): Dictionary where each key is a well name and the value is a DataFrame with the well's curves.
-    - selected_curves (list): List of selected curves to include.
-    - unique_formations (set): Set of all unique formations in the field.
-    - window_size (int): Window size for statistical features.
-    - num_clusters (int): Number of clusters for KMeans and Agglomerative Clustering.
-    
-    Returns:
-    - dict: Dictionary with the generated feature DataFrames for each well.
-    - dict: Dictionary with feature names and their types (categorical or numerical).
+    Genera DataFrames de 55 columnas de features para cada pozo, pero con FRECUENCIA y ENTROPÍA 
+    calculadas en ventanas locales (evitando valores fijos a lo largo de todo el pozo).
+
+    Parámetros
+    ----------
+    train_validation_data : dict
+        { well_name: DataFrame con curvas originales }.
+    selected_curves : list
+        Lista de curvas que se usarán como entrada (ejemplo: ['GR','RILD','RHOB','RLL3','RXORT', etc.]).
+    curves_to_predict : list
+        Curvas que se quieren predecir, NO se tocan (p.ej. ['CNLS','Formation']).
+    window_size : int
+        Tamaño de la ventana para estadísticas rolling y también para FFT/entropía locales.
+    num_clusters : int
+        Número de clusters para KMeans y AgglomerativeClustering (p.ej. 15).
+
+    Retorna
+    -------
+    engineered_data : dict
+        { well_name: DataFrame }, cada DataFrame con 55 columnas finales.
+    feature_info : dict
+        { feature_name: 'numerical'/'categorical'/'coordinate' }.
     """
 
-    # Get the logger within the function
     logger = logging.getLogger(__name__)
-
-    epsilon = 1e-6  # Small constant to prevent division by zero
+    epsilon = 1e-6
     engineered_data = {}
-    
-    for well, df in train_validation_data.items():
-        # logger.info(f"Processing well: {well}")
-        # Copy the dataframe to avoid modifying the original
-        df_copy = df.copy()
-        
-        # Select only the relevant curves and preserve coordinate and formation columns
-        selected_curves_well = [curve for curve in selected_curves if curve in df_copy.columns]
-        columns_to_keep = selected_curves_well + \
-                         (['Formation'] if 'Formation' in df_copy.columns else []) + \
-                         (['Latitude'] if 'Latitude' in df_copy.columns else []) + \
-                         (['Longitude'] if 'Longitude' in df_copy.columns else [])
-        df_copy = df_copy[columns_to_keep]
-    
-        # Add Formation column if not present (with a default value)
-        if 'Formation' not in df_copy.columns:
-            logger.warning(f"Adding default 'Unknown' Formation for well {well}")
-            df_copy['Formation'] = 'Unknown'
-        
-        # Add default coordinate values if not present
-        if 'Latitude' not in df_copy.columns:
-            logger.warning(f"Adding default NaN Latitude for well {well}")
-            df_copy['Latitude'] = np.nan
-            
-        if 'Longitude' not in df_copy.columns:
-            logger.warning(f"Adding default NaN Longitude for well {well}")
-            df_copy['Longitude'] = np.nan
-        
-        # ---- 1. Direct Relationships ----
-        # logger.info("Generating direct relationship features...")
-        df_copy['RILD_minus_RILM'] = df_copy['RILD'] - df_copy['RILM']
-        df_copy['RILD_over_RILM'] = df_copy['RILD'] / (df_copy['RILM'] + epsilon)
-        df_copy['GR_minus_SP'] = df_copy['GR'] - df_copy['SP']
-        df_copy['MN_minus_MI'] = df_copy['MN'] - df_copy['MI']
-        df_copy['RHOB_minus_CILD'] = df_copy['RHOB'] - df_copy['CILD']
-        df_copy['DT_over_RHOB'] = df_copy['DT'] / (df_copy['RHOB'] + epsilon)
-        
-        # NUEVAS RELACIONES DIRECTAS
-        df_copy['GR_over_RHOB'] = df_copy['GR'] / (df_copy['RHOB'] + epsilon)
-        df_copy['RILD_times_RHOB'] = df_copy['RILD'] * df_copy['RHOB']
-        df_copy['SP_over_DT'] = df_copy['SP'] / (df_copy['DT'] + epsilon)
-        df_copy['MN_over_MI'] = df_copy['MN'] / (df_copy['MI'] + epsilon)
-        df_copy['GR_over_DT'] = df_copy['GR'] / (df_copy['DT'] + epsilon)
-        
-        # Check for NaNs after direct relationships
-        direct_rel_features = ['RILD_minus_RILM', 'RILD_over_RILM', 'GR_minus_SP', 
-                             'MN_minus_MI', 'RHOB_minus_CILD', 'DT_over_RHOB',
-                             'GR_over_RHOB', 'RILD_times_RHOB', 'SP_over_DT', 
-                             'MN_over_MI', 'GR_over_DT']
-        nan_count = df_copy[direct_rel_features].isna().sum().sum()
-        if nan_count > 0:
-            logger.warning(f"NaNs introduced after direct relationships in well {well}: {nan_count}")
-        else:
-            # logger.info(f"No NaNs introduced after direct relationships in well {well}.")
-            pass
-    
-        # ---- 2. Logarithmic Transformations ----
-        # logger.info("Generating logarithmic transformation features...")
-        df_copy['Log_RILD'] = np.log(df_copy['RILD'] + epsilon)
-        df_copy['Log_RILM'] = np.log(df_copy['RILM'] + epsilon)
-        df_copy['Log_GR'] = np.log(df_copy['GR'] + epsilon)
-        
-        # NUEVAS TRANSFORMACIONES
-        df_copy['Log_RHOB'] = np.log(df_copy['RHOB'] + epsilon)
-        df_copy['Log_DT'] = np.log(df_copy['DT'] + epsilon)
-        df_copy['Sqrt_GR'] = np.sqrt(df_copy['GR'] + epsilon)
-        df_copy['Sqrt_RILD'] = np.sqrt(df_copy['RILD'] + epsilon)
-        df_copy['Squared_GR'] = df_copy['GR'] ** 2
-        df_copy['Squared_RILD'] = df_copy['RILD'] ** 2
-        df_copy['Exp_normalized_GR'] = np.exp(df_copy['GR'] / df_copy['GR'].max())
-        
-        # Check for NaNs after transformations
-        transform_features = ['Log_RILD', 'Log_RILM', 'Log_GR', 'Log_RHOB', 'Log_DT',
-                             'Sqrt_GR', 'Sqrt_RILD', 'Squared_GR', 'Squared_RILD', 
-                             'Exp_normalized_GR']
-        nan_count = df_copy[transform_features].isna().sum().sum()
-        if nan_count > 0:
-            logger.warning(f"NaNs introduced after transformations in well {well}: {nan_count}")
-        else:
-            # logger.info(f"No NaNs introduced after transformations in well {well}.")
-            pass
-    
-        # ---- 3. Indirect Relationships ----
-        # logger.info("Generating indirect relationship features...")
-        df_copy['GR_times_RHOB'] = df_copy['GR'] * df_copy['RHOB']
-        df_copy['SP_times_DT'] = df_copy['SP'] * df_copy['DT']
-        
-        # NUEVAS RELACIONES INDIRECTAS
-        df_copy['GR_times_DT'] = df_copy['GR'] * df_copy['DT']
-        df_copy['RILD_times_DT'] = df_copy['RILD'] * df_copy['DT']
-        df_copy['RHOB_times_DT'] = df_copy['RHOB'] * df_copy['DT']
-        
-        # Check for NaNs after indirect relationships
-        indirect_rel_features = ['GR_times_RHOB', 'SP_times_DT', 'GR_times_DT', 
-                                'RILD_times_DT', 'RHOB_times_DT']
-        nan_count = df_copy[indirect_rel_features].isna().sum().sum()
-        if nan_count > 0:
-            logger.warning(f"NaNs introduced after indirect relationships in well {well}: {nan_count}")
-        else:
-            # logger.info(f"No NaNs introduced after indirect relationships in well {well}.")
-            pass
-    
-        # ---- 4. Petrophysical Calculations ----
-        # logger.info("Generating petrophysical calculation features...")
-        # Volumen de Lutita (Vsh)
-        GR_min = df_copy['GR'].min()
-        GR_max = df_copy['GR'].max()
-        df_copy['Vsh'] = (df_copy['GR'] - GR_min) / (GR_max - GR_min + epsilon)
-        df_copy['Vsh'] = df_copy['Vsh'].clip(0, 1)
-        
-        # Porosidad Total (PhiD)
-        rho_ma = 2.65  # Densidad de la matriz (g/cm³)
-        rho_f = 1.0    # Densidad del fluido (g/cm³)
-        df_copy['PhiD'] = (rho_ma - df_copy['RHOB']) / (rho_ma - rho_f + epsilon)
-        
-        # Porosidad Sónica (PhiS)
-        dt_ma = 55.5   # Tiempo de tránsito de la matriz (µs/ft)
-        dt_f = 189     # Tiempo de tránsito del fluido (µs/ft)
-        df_copy['PhiS'] = (df_copy['DT'] - dt_ma) / (dt_f - dt_ma + epsilon)
-        
-        # Porosidad Promedio (Phi_avg)
-        if 'NPHI' in df_copy.columns:
-            df_copy['PhiN'] = df_copy['NPHI']  # Porosidad de Neutrón
-            df_copy['Phi_avg'] = (df_copy['PhiD'] + df_copy['PhiS'] + df_copy['PhiN']) / 3
-        else:
-            df_copy['Phi_avg'] = (df_copy['PhiD'] + df_copy['PhiS']) / 2
-        
-        # Saturación de Agua (Sw_archie) usando la Ecuación de Archie
-        a = 1       # Constante de tortuosidad
-        m = 2       # Exponente de cementación
-        n = 2       # Exponente de saturación
-        Rw = 0.1    # Resistividad del agua de formación (ohm·m)
-        df_copy['Sw_archie'] = ((a * Rw) / (df_copy['RILD'] * (df_copy['Phi_avg'] ** m) + epsilon)) ** (1 / n)
-        df_copy['Sw_archie'] = df_copy['Sw_archie'].clip(0, 1)
-        
-        # Índice de Resistividad (RI)
-        df_copy['RI'] = df_copy['RILD'] / (Rw + epsilon)
-        
-        # Agua Total en Volumen (BVW)
-        df_copy['BVW'] = df_copy['Phi_avg'] * df_copy['Sw_archie']
-        
-        # Permeabilidad estimada (k_timur) usando la Ecuación de Timur
-        df_copy['k_timur'] = 0.136 * (df_copy['Phi_avg'] ** 4.4) / ((df_copy['Sw_archie'] + epsilon) ** 2)
-        
-        # Índice de Productividad (PI) simplificado
-        df_copy['PI'] = df_copy['k_timur'] / (df_copy['Phi_avg'] + epsilon)
-    
-        # NUEVOS CÁLCULOS PETROFÍSICOS
-        # Índice de Hidrocarburos (HC_Index)
-        df_copy['HC_Index'] = (1 - df_copy['Sw_archie']) * df_copy['Phi_avg']
-        
-        # Índice de Calidad de Reservorio (RQI)
-        df_copy['RQI'] = 0.0314 * np.sqrt(df_copy['k_timur'] / (df_copy['Phi_avg'] + epsilon))
-        
-        # Unidades de Flujo Hidráulico (FZI)
-        df_copy['FZI'] = df_copy['RQI'] / ((df_copy['Phi_avg'] / (1 - df_copy['Phi_avg'] + epsilon)) + epsilon)
-        
-        # Clamp or correct any problematic values in k_timur and PI
-        # Identify NaN or Inf values
-        problematic_k_timur = df_copy['k_timur'].isna() | np.isinf(df_copy['k_timur'])
-        num_problematic_k_timur = problematic_k_timur.sum()
-        if num_problematic_k_timur > 0:
-            logger.warning(f"{num_problematic_k_timur} problematic k_timur values found in well {well}. Setting to zero.")
-            df_copy.loc[problematic_k_timur, 'k_timur'] = 0.0
-        
-        problematic_PI = df_copy['PI'].isna() | np.isinf(df_copy['PI'])
-        num_problematic_PI = problematic_PI.sum()
-        if num_problematic_PI > 0:
-            logger.warning(f"{num_problematic_PI} problematic PI values found in well {well}. Setting to zero.")
-            df_copy.loc[problematic_PI, 'PI'] = 0.0
-        
-        # Corregir valores problemáticos en nuevas características
-        for feature in ['RQI', 'FZI']:
-            problematic_values = df_copy[feature].isna() | np.isinf(df_copy[feature])
-            num_problematic = problematic_values.sum()
-            if num_problematic > 0:
-                logger.warning(f"{num_problematic} problematic {feature} values found in well {well}. Setting to zero.")
-                df_copy.loc[problematic_values, feature] = 0.0
-    
-        # Índice Litológico (Lithology_Index)
-        df_copy['Lithology_Index'] = df_copy['MN'] + df_copy['MI'] - df_copy['Vsh']
-        
-        # Check for NaNs after petrophysical calculations
-        petrophysical_features = ['Vsh', 'PhiD', 'PhiS', 'Phi_avg', 'Sw_archie', 
-                                  'RI', 'BVW', 'k_timur', 'PI', 'Lithology_Index',
-                                  'HC_Index', 'RQI', 'FZI']
-        nan_count = df_copy[petrophysical_features].isna().sum().sum()
-        if nan_count > 0:
-            logger.warning(f"NaNs introduced after petrophysical calculations in well {well}: {nan_count}")
-        else:
-            # logger.info(f"No NaNs introduced after petrophysical calculations in well {well}.")
-            pass
-    
-        # ---- 5. Statistical Features on Key Curves ----
-        # logger.info("Generating statistical features on key curves...")
-        key_curves = ['GR', 'RILD', 'RHOB', 'DT']
-        
-        for curve in key_curves:
-            df_copy[f'{curve}_Moving_Avg'] = df_copy[curve].rolling(window=window_size, min_periods=1, center=True).mean()
-            df_copy[f'{curve}_Moving_Var'] = df_copy[curve].rolling(window=window_size, min_periods=1, center=True).var().fillna(0)
-            df_copy[f'{curve}_Smoothed'] = gaussian_filter(df_copy[curve], sigma=1)
-            
-            # NUEVAS CARACTERÍSTICAS ESTADÍSTICAS
-            df_copy[f'{curve}_Moving_Median'] = df_copy[curve].rolling(window=window_size, min_periods=1, center=True).median()
-            df_copy[f'{curve}_Moving_Max'] = df_copy[curve].rolling(window=window_size, min_periods=1, center=True).max()
-            df_copy[f'{curve}_Moving_Min'] = df_copy[curve].rolling(window=window_size, min_periods=1, center=True).min()
-            df_copy[f'{curve}_Moving_Range'] = df_copy[f'{curve}_Moving_Max'] - df_copy[f'{curve}_Moving_Min']
-            
-            # Características de gradiente
-            df_copy[f'{curve}_Gradient'] = df_copy[curve].diff().fillna(0)
-            df_copy[f'{curve}_Gradient_Abs'] = df_copy[f'{curve}_Gradient'].abs()
-            
-            # Check for NaNs after statistical features
-            stat_features = [f'{curve}_Moving_Avg', f'{curve}_Moving_Var', f'{curve}_Smoothed',
-                            f'{curve}_Moving_Median', f'{curve}_Moving_Max', f'{curve}_Moving_Min',
-                            f'{curve}_Moving_Range', f'{curve}_Gradient', f'{curve}_Gradient_Abs']
-            nan_count = df_copy[stat_features].isna().sum().sum()
-            if nan_count > 0:
-                logger.warning(f"NaNs introduced after statistical features for {curve} in well {well}: {nan_count}")
+
+    # -------------------------------------------------------------------------
+    # 1. Listas de columnas numéricas base (sin freq/ent)
+    # -------------------------------------------------------------------------
+    direct_rel_cols = [
+        'RILD_minus_RILM',
+        'RILD_minus_RHOC',
+        'RILD_over_RILM',
+        'RHOC_minus_RHOB',
+        'GR_minus_SP',
+        'GR_over_RHOC',
+        'MN_minus_MI',
+        'RLL3_minus_RXORT',
+        'RLL3_over_RXORT'
+    ]
+
+    transform_cols = [
+        'Log_RILD',
+        'Log_RHOC',
+        'Log_GR',
+        'Sqrt_RILD',
+        'Sqrt_RHOC',
+        'Exp_normalized_GR'
+    ]
+
+    indirect_rel_cols = [
+        'RILD_times_RHOC',
+        'GR_times_RHOC',
+        'SP_times_DT',
+        'RHOB_times_RHOC',
+        'GR_times_DT'
+    ]
+
+    petrophysical_cols = [
+        'Vsh',
+        'PhiD',
+        'PhiS',
+        'Phi_avg',
+        'Sw_archie',
+        'k_timur',
+        'BVW',
+        'HC_Index',
+        'RQI',
+        'FZI'
+    ]
+
+    key_curves_for_stats = ['GR','RILD','RHOC','RHOB']
+
+    depth_cols = ['Normalized_Depth','Depth_Squared']
+    geo_cols   = ['Well_ID']
+    cluster_cols = ['kmeans_cluster','agglo_cluster']
+
+    # -- Se quitan las antiguas freq_cols y ent_cols, y se reemplazan por las nuevas:
+    local_freq_cols = [
+        'GR_LocalFreq',
+        'RILD_LocalFreq',
+        'RHOC_LocalFreq'
+    ]
+    local_ent_cols = [
+        'GR_LocalEntropy','GR_LocalComplexity',
+        'RILD_LocalEntropy','RILD_LocalComplexity'
+    ]
+
+    # -------------------------------------------------------------------------
+    # Funciones auxiliares
+    # -------------------------------------------------------------------------
+    def safe(df, col):
+        return df[col] if col in df.columns else np.nan
+
+    def compute_local_dominant_freq(arr, window=20):
+        """
+        Calcula la amplitud de la frecuencia dominante en ventanas alrededor de cada sample.
+        """
+        n = len(arr)
+        half_w = window // 2
+        out_freq = np.zeros(n, dtype=float)
+        for i in range(n):
+            start = max(0, i - half_w)
+            end   = min(n, i + half_w)
+            seg   = arr[start:end]
+            fft_seg = np.abs(fft.fft(seg))
+            if len(fft_seg) > 1:
+                # Ignorar la componente DC => buscamos max en 1..(len(seg)//2)
+                sub_part = fft_seg[1:len(seg)//2]
+                idx_dom  = np.argmax(sub_part) + 1
+                out_freq[i] = fft_seg[idx_dom]
             else:
-                # logger.info(f"No NaNs introduced after statistical features for {curve} in well {well}.")
-                pass
+                out_freq[i] = 0
+        return out_freq
+
+    def compute_local_entropy_complexity(arr, window=20):
+        """
+        Calcula entropía y complejidad de forma local (ventana centrada) 
+        y retorna 2 arrays (entropía, complejidad).
+        """
+        n = len(arr)
+        half_w = window // 2
+        out_ent = np.zeros(n, dtype=float)
+        out_comp = np.zeros(n, dtype=float)
+        for i in range(n):
+            start = max(0, i - half_w)
+            end   = min(n, i + half_w)
+            seg   = arr[start:end]
+
+            # Entropía
+            hist, _ = np.histogram(seg, bins=20)
+            hist_norm = hist / (hist.sum() + epsilon)
+            entropy_val = -np.sum(hist_norm * np.log2(hist_norm + epsilon))
+            out_ent[i] = entropy_val
+
+            # Complejidad => std(gradient) / mean(abs(gradient))
+            grads = np.diff(seg)
+            if len(grads) > 0:
+                std_g = np.std(grads)
+                mean_abs_g = np.mean(np.abs(grads)) + epsilon
+                out_comp[i] = std_g / mean_abs_g
+            else:
+                out_comp[i] = 0
+        return out_ent, out_comp
+
+    # -------------------------------------------------------------------------
+    # 2. Procesado de cada pozo
+    # -------------------------------------------------------------------------
+    for well_name, df in train_validation_data.items():
+        df_copy = df.copy()
+
+        # 2.1 Filtrado de columnas
+        use_cols = []
+        for c in selected_curves:
+            if c not in curves_to_predict and c in df_copy.columns:
+                use_cols.append(c)
         
-        # ---- 6. Características de Frecuencia (FFT) ----
-        # Aplicar FFT a curvas clave y extraer características de frecuencia
-        for curve in key_curves:
-            # Asegurarse de que no hay valores NaN
-            curve_data = df_copy[curve].fillna(method='ffill').fillna(method='bfill').values
-            
-            # Aplicar FFT
-            fft_result = np.abs(fft.fft(curve_data))
-            
-            # Extraer características de frecuencia (primeros 5 componentes)
-            n_components = min(5, len(fft_result) // 2)
-            dominant_freqs = np.argsort(fft_result[1:n_components+1])[::-1] + 1
-            
-            # Guardar la magnitud del componente de frecuencia dominante
-            df_copy[f'{curve}_Dominant_Freq_Magnitude'] = fft_result[dominant_freqs[0]] if len(dominant_freqs) > 0 else 0
-            
-            # Calcular la energía espectral total
-            df_copy[f'{curve}_Spectral_Energy'] = np.sum(fft_result**2) / len(fft_result)
-        
-        # ---- 7. Características de Profundidad ----
-        # Obtener la profundidad como índice
-        depth_values = df_copy.index.values.astype(float)
-        
-        # Normalizar la profundidad al rango [0, 1]
-        min_depth = np.min(depth_values)
-        max_depth = np.max(depth_values)
-        normalized_depth = (depth_values - min_depth) / (max_depth - min_depth + epsilon)
-        
-        # Añadir características basadas en la profundidad
-        df_copy['Normalized_Depth'] = normalized_depth
-        df_copy['Depth_Squared'] = normalized_depth ** 2
-        df_copy['Depth_Cubed'] = normalized_depth ** 3
-        
-        # ---- 8. Características Geoespaciales ----
-        # Verificar si tenemos coordenadas válidas
-        if not (np.isnan(df_copy['Latitude'].iloc[0]) or np.isnan(df_copy['Longitude'].iloc[0])):
-            # Calcular distancia desde un punto de referencia (por ejemplo, el centro del campo)
-            # Usamos las coordenadas del primer pozo como referencia
-            ref_lat = df_copy['Latitude'].iloc[0]
-            ref_lon = df_copy['Longitude'].iloc[0]
-            
-            # Distancia aproximada en grados (para cálculos más precisos se necesitaría la fórmula de Haversine)
-            df_copy['Distance_From_Ref'] = np.sqrt((df_copy['Latitude'] - ref_lat)**2 + 
-                                                 (df_copy['Longitude'] - ref_lon)**2)
-        
-        # ---- 9. Características de Entropía y Complejidad ----
-        for curve in key_curves:
-            # Calcular entropía de Shannon aproximada
-            hist, _ = np.histogram(df_copy[curve].dropna(), bins=20)
-            hist_norm = hist / (np.sum(hist) + epsilon)
-            entropy = -np.sum(hist_norm * np.log2(hist_norm + epsilon))
-            df_copy[f'{curve}_Entropy'] = entropy
-            
-            # Calcular complejidad (aproximación mediante la variabilidad de los gradientes)
-            gradients = np.diff(df_copy[curve].fillna(method='ffill').fillna(method='bfill').values)
-            complexity = np.std(gradients) / (np.mean(np.abs(gradients)) + epsilon)
-            df_copy[f'{curve}_Complexity'] = complexity
-        
-        # ---- 10. Categorical Features via Clustering ----
-        # logger.info("Generating clustering-based categorical features...")
-        clustering_features = df_copy.columns.difference(['Formation'])
-        
-        # Impute missing values with the mean of each feature
-        imputer = SimpleImputer(strategy='mean')
-        df_clustering = pd.DataFrame(imputer.fit_transform(df_copy[clustering_features]), 
-                                     columns=clustering_features)
-        
-        # KMeans Clustering
-        kmeans = KMeans(n_clusters=num_clusters, n_init='auto', random_state=42)
-        df_copy['kmeans_cluster'] = kmeans.fit_predict(df_clustering)
-        
-        # Agglomerative Clustering
-        agglo = AgglomerativeClustering(n_clusters=num_clusters)
-        df_copy['agglo_cluster'] = agglo.fit_predict(df_clustering)
-        
-        # Convert cluster labels to categorical type
-        df_copy['kmeans_cluster'] = df_copy['kmeans_cluster'].astype('category')
-        df_copy['agglo_cluster'] = df_copy['agglo_cluster'].astype('category')
-        
-        # Check for NaNs after clustering
-        nan_count = df_copy[['kmeans_cluster', 'agglo_cluster']].isna().sum().sum()
-        if nan_count > 0:
-            logger.warning(f"NaNs introduced after clustering in well {well}: {nan_count}")
-        else:
-            # logger.info(f"No NaNs introduced after clustering in well {well}.")
-            pass
-    
-        # ---- 11. Encoding 'Formation' Column ----
-        # logger.info("Encoding 'Formation' column...")
-        df_copy['Formation'] = df_copy['Formation'].astype(str)
-        
-        # Create a mapping for formations
-        unique_formations_list = sorted(list(unique_formations))
-        formation_mapping = {formation: i for i, formation in enumerate(unique_formations_list)}
-        
-        # Encode 'Formation' using the mapping
-        df_copy['Formation_Encoded'] = df_copy['Formation'].map(formation_mapping).astype('category')
-        
-        # Check for NaNs after encoding
-        nan_count = df_copy['Formation_Encoded'].isna().sum()
-        if nan_count > 0:
-            logger.warning(f"NaNs introduced during 'Formation' encoding in well {well}: {nan_count}")
-        else:
-            # logger.info(f"No NaNs introduced during 'Formation' encoding in well {well}.")
-            pass
-        
-        # ---- 12. Selecting Final Features ----
-        # logger.info("Selecting final features...")
-        # Lista original de características
-        original_features = selected_curves_well + [
-            'RILD_minus_RILM', 'RILD_over_RILM', 'GR_minus_SP', 'MN_minus_MI',
-            'RHOB_minus_CILD', 'DT_over_RHOB',
-            'Log_RILD', 'Log_RILM', 'Log_GR',
-            'GR_times_RHOB', 'SP_times_DT',
-            'Vsh', 'PhiD', 'PhiS', 'Phi_avg', 'Sw_archie', 'RI', 'BVW', 'k_timur', 'PI', 'Lithology_Index',
-            'GR_Moving_Avg', 'GR_Moving_Var', 'GR_Smoothed',
-            'RILD_Moving_Avg', 'RILD_Moving_Var', 'RILD_Smoothed',
-            'RHOB_Moving_Avg', 'RHOB_Moving_Var', 'RHOB_Smoothed',
-            'DT_Moving_Avg', 'DT_Moving_Var', 'DT_Smoothed',
-            'kmeans_cluster', 'agglo_cluster',
-            'Formation_Encoded'
-        ]
-        
-        # Nuevas características
-        new_features = [
-            # Nuevas relaciones directas
-            'GR_over_RHOB', 'RILD_times_RHOB', 'SP_over_DT', 'MN_over_MI', 'GR_over_DT',
-            
-            # Nuevas transformaciones
-            'Log_RHOB', 'Log_DT', 'Sqrt_GR', 'Sqrt_RILD', 'Squared_GR', 'Squared_RILD', 'Exp_normalized_GR',
-            
-            # Nuevas relaciones indirectas
-            'GR_times_DT', 'RILD_times_DT', 'RHOB_times_DT',
-            
-            # Nuevos cálculos petrofísicos
-            'HC_Index', 'RQI', 'FZI',
-            
-            # Nuevas características estadísticas (solo para GR como ejemplo)
-            'GR_Moving_Median', 'GR_Moving_Max', 'GR_Moving_Min', 'GR_Moving_Range',
-            'GR_Gradient', 'GR_Gradient_Abs',
-            
-            # Características de frecuencia
-            'GR_Dominant_Freq_Magnitude', 'GR_Spectral_Energy',
-            
-            # Características de profundidad
-            'Normalized_Depth', 'Depth_Squared', 'Depth_Cubed',
-            
-            # Características de entropía y complejidad
-            'GR_Entropy', 'GR_Complexity'
-        ]
-        
-        # Características geoespaciales (si están disponibles)
-        if 'Distance_From_Ref' in df_copy.columns:
-            new_features.append('Distance_From_Ref')
-        
-        # Combinar características originales y nuevas
-        final_features = original_features + new_features
-        
-        # Add coordinate columns if they exist
+        # Añadir columnas objetivo directamente (sin transformar)
+        for c in curves_to_predict:
+            if c in df_copy.columns:
+                use_cols.append(c)
+                
         if 'Latitude' in df_copy.columns:
-            final_features.append('Latitude')
+            use_cols.append('Latitude')
         if 'Longitude' in df_copy.columns:
-            final_features.append('Longitude')
-        
-        # Eliminar duplicados si los hay
-        final_features = list(dict.fromkeys(final_features))
-        
-        # Verificar que todas las características existen en el DataFrame
-        existing_features = [f for f in final_features if f in df_copy.columns]
-        
-        # Select the final features
-        df_final = df_copy[existing_features]
-        
-        # Add the processed DataFrame to the engineered data dictionary
-        engineered_data[well] = df_final
-        
-        # logger.info(f"Completed processing for well {well}.")
-    
-    # Create a dictionary to store feature names and types
-    feature_info = {}
-    
-    # Iterate over the engineered features and categorize them
-    for feature_name in engineered_data[next(iter(engineered_data))].columns:
-        if (feature_name == 'Formation_Encoded' or 
-            'cluster' in feature_name or  # For kmeans_cluster and agglo_cluster
-            pd.api.types.is_categorical_dtype(engineered_data[next(iter(engineered_data))][feature_name])):
-            feature_info[feature_name] = 'categorical'
-        elif feature_name in ['Latitude', 'Longitude']:
-            feature_info[feature_name] = 'coordinate'  # New category for coordinates
+            use_cols.append('Longitude')
+        if 'Formation' in df_copy.columns and 'Formation' not in curves_to_predict:
+            use_cols.append('Formation')
+
+        df_copy = df_copy[use_cols].copy()
+
+        # Asegurar lat/lon
+        if 'Latitude' not in df_copy.columns:
+            df_copy['Latitude'] = np.nan
+        if 'Longitude' not in df_copy.columns:
+            df_copy['Longitude'] = np.nan
+
+        # (A) RELACIONES DIRECTAS
+        df_copy['RILD_minus_RILM']  = safe(df_copy,'RILD') - safe(df_copy,'RILM')
+        df_copy['RILD_minus_RHOC']  = safe(df_copy,'RILD') - safe(df_copy,'RHOC')
+        df_copy['RILD_over_RILM']   = safe(df_copy,'RILD') / (safe(df_copy,'RILM') + epsilon)
+        df_copy['RHOC_minus_RHOB']  = safe(df_copy,'RHOC') - safe(df_copy,'RHOB')
+        df_copy['GR_minus_SP']      = safe(df_copy,'GR')   - safe(df_copy,'SP')
+        df_copy['GR_over_RHOC']     = safe(df_copy,'GR')   / (safe(df_copy,'RHOC') + epsilon)
+        df_copy['MN_minus_MI']      = safe(df_copy,'MN')   - safe(df_copy,'MI')
+        df_copy['RLL3_minus_RXORT'] = safe(df_copy,'RLL3') - safe(df_copy,'RXORT')
+        df_copy['RLL3_over_RXORT']  = safe(df_copy,'RLL3') / (safe(df_copy,'RXORT') + epsilon)
+
+        # (B) TRANSFORMACIONES
+        # df_copy['Log_RILD']  = np.log(safe(df_copy,'RILD') + epsilon)
+        # df_copy['Log_RHOC']  = np.log(safe(df_copy,'RHOC') + epsilon)
+        # df_copy['Log_GR']    = np.log(safe(df_copy,'GR')   + epsilon)
+        # df_copy['Sqrt_RILD'] = np.sqrt(safe(df_copy,'RILD') + epsilon)
+        # df_copy['Sqrt_RHOC'] = np.sqrt(safe(df_copy,'RHOC') + epsilon)
+
+        # (B) TRANSFORMACIONES (Robusto contra negativos y NaNs)
+        for curve in ['RILD', 'RHOC', 'GR']:
+            safe_curve = safe(df_copy, curve).clip(lower=epsilon).fillna(epsilon)
+            df_copy[f'Log_{curve}'] = np.log(safe_curve)
+
+        for curve in ['RILD', 'RHOC']:
+            safe_curve = safe(df_copy, curve).clip(lower=epsilon).fillna(epsilon)
+            df_copy[f'Sqrt_{curve}'] = np.sqrt(safe_curve)
+
+
+        gr_val = safe(df_copy,'GR')
+        gr_maxv = (gr_val.max() if hasattr(gr_val,'max') else 0) or epsilon
+        df_copy['Exp_normalized_GR'] = np.exp(gr_val / gr_maxv)
+
+        # (C) RELACIONES INDIRECTAS
+        df_copy['RILD_times_RHOC'] = safe(df_copy,'RILD') * safe(df_copy,'RHOC')
+        df_copy['GR_times_RHOC']   = safe(df_copy,'GR')   * safe(df_copy,'RHOC')
+        df_copy['SP_times_DT']     = safe(df_copy,'SP')   * safe(df_copy,'DT')
+        df_copy['RHOB_times_RHOC'] = safe(df_copy,'RHOB') * safe(df_copy,'RHOC')
+        df_copy['GR_times_DT']     = safe(df_copy,'GR')   * safe(df_copy,'DT')
+
+        # (D) CÁLCULOS PETROFÍSICOS
+        gr_col = safe(df_copy,'GR')
+        if hasattr(gr_col,'min'):
+            gr_min, gr_max2 = gr_col.min(), gr_col.max()
         else:
-            feature_info[feature_name] = 'numerical'
-    
+            gr_min, gr_max2 = np.nan, np.nan
+        rango_gr = (gr_max2 - gr_min) if not pd.isna(gr_max2) else epsilon
+
+        df_copy['Vsh'] = (gr_col - gr_min)/(rango_gr + epsilon)
+        df_copy['Vsh'] = df_copy['Vsh'].clip(0,1)
+
+        rho_ma, rho_f = 2.65, 1.0
+        df_copy['PhiD'] = (rho_ma - safe(df_copy,'RHOB'))/(rho_ma - rho_f + epsilon)
+
+        dt_ma, dt_f = 55.5, 189
+        df_copy['PhiS'] = (safe(df_copy,'DT') - dt_ma)/(dt_f - dt_ma + epsilon)
+
+        if 'NPHI' in df_copy.columns:
+            df_copy['Phi_avg'] = (df_copy['PhiD'] + df_copy['PhiS'] + df_copy['NPHI'])/3.0
+        else:
+            df_copy['Phi_avg'] = (df_copy['PhiD'] + df_copy['PhiS'])/2.0
+
+        a, m, n, Rw = 1.0, 2.0, 2.0, 0.1
+        df_copy['Sw_archie'] = ((a*Rw) / 
+            (safe(df_copy,'RILD')*(df_copy['Phi_avg']**m)+epsilon))**(1/n)
+        df_copy['Sw_archie'] = df_copy['Sw_archie'].clip(0,1)
+
+        df_copy['k_timur'] = 0.136*(df_copy['Phi_avg']**4.4)/((df_copy['Sw_archie']+epsilon)**2)
+        df_copy['BVW']     = df_copy['Phi_avg']*df_copy['Sw_archie']
+        df_copy['HC_Index']= (1 - df_copy['Sw_archie'])*df_copy['Phi_avg']
+
+        df_copy['RQI'] = 0.0314 * np.sqrt( df_copy['k_timur']/(df_copy['Phi_avg']+epsilon) )
+        df_copy['FZI'] = df_copy['RQI']/((df_copy['Phi_avg']/(1-df_copy['Phi_avg']+epsilon))+epsilon)
+
+        # Reemplazo de NaN/Inf en petrofísicos
+        for pet_col in ['Vsh','PhiD','PhiS','Phi_avg','Sw_archie','k_timur',
+                        'BVW','HC_Index','RQI','FZI']:
+            mask_bad = df_copy[pet_col].isna() | np.isinf(df_copy[pet_col])
+            if mask_bad.any():
+                logger.warning(f"[{well_name}] Se anulan {mask_bad.sum()} valores problemáticos en {pet_col}")
+                df_copy.loc[mask_bad, pet_col] = 0.0
+
+        # (E) ESTADÍSTICAS ROLLING
+        for cstat in key_curves_for_stats:
+            if cstat in df_copy.columns: 
+                df_copy[f'{cstat}_Moving_Avg'] = df_copy[cstat].rolling(
+                    window=window_size, min_periods=1, center=True).mean()
+                df_copy[f'{cstat}_Moving_Var'] = df_copy[cstat].rolling(
+                    window=window_size, min_periods=1, center=True).var().fillna(0)
+            else:
+                df_copy[f'{cstat}_Moving_Avg'] = 0
+                df_copy[f'{cstat}_Moving_Var'] = 0
+
+        # (F) PROFUNDIDAD
+        depth_vals = df_copy.index.values.astype(float)
+        if len(depth_vals) > 1:
+            d_min, d_max = depth_vals.min(), depth_vals.max()
+            denom_depth  = (d_max - d_min) if d_max > d_min else epsilon
+            norm_depth   = (depth_vals - d_min)/(denom_depth+epsilon)
+        else:
+            norm_depth = np.zeros_like(depth_vals)
+
+        df_copy['Normalized_Depth'] = norm_depth
+        df_copy['Depth_Squared']    = norm_depth**2
+
+        # (G) GEOESPACIAL - Reemplazar Distance_From_Ref con Well_ID
+        lat0 = df_copy['Latitude'].iloc[0]
+        lon0 = df_copy['Longitude'].iloc[0]
+
+        if not np.isnan(lat0) and not np.isnan(lon0):
+            df_copy['Well_ID'] = abs(hash((lat0, lon0))) % 100000  # Genera un ID numérico único
+        else:
+            df_copy['Well_ID'] = np.nan  # Si no hay coordenadas, deja NaN para manejarlo después
+
+        # (H) CLUSTERING
+        ignore_cols = list(curves_to_predict)
+        if 'Formation' in df_copy.columns and 'Formation' not in ignore_cols:
+            ignore_cols.append('Formation')
+
+        clusterable = [c for c in df_copy.columns if c not in ignore_cols]
+        imputer = SimpleImputer(strategy='mean')
+        cluster_input = pd.DataFrame(imputer.fit_transform(df_copy[clusterable]), 
+                                     columns=clusterable)
+
+        kmeans = KMeans(n_clusters=num_clusters, n_init='auto', random_state=42)
+        kmeans_results = kmeans.fit_predict(cluster_input).astype(int)
+        df_copy['kmeans_cluster'] = pd.Categorical(kmeans_results)
+
+        agglo = AgglomerativeClustering(n_clusters=num_clusters)
+        agglo_results = agglo.fit_predict(cluster_input).astype(int)
+        df_copy['agglo_cluster'] = pd.Categorical(agglo_results)
+
+        # (I) FRECUENCIA LOCAL (sustituyendo a freq global)
+        for freq_curve in ['GR','RILD','RHOC']:
+            if freq_curve in df_copy.columns:
+                series_clean = df_copy[freq_curve].fillna(method='ffill').fillna(method='bfill').values
+                df_copy[f'{freq_curve}_LocalFreq'] = compute_local_dominant_freq(series_clean, window=window_size)
+            else:
+                df_copy[f'{freq_curve}_LocalFreq'] = 0
+
+        # (J) ENTROPÍA & COMPLEJIDAD LOCAL (sustituyendo a la global)
+        for ent_curve in ['GR','RILD']:
+            if ent_curve in df_copy.columns:
+                vals = df_copy[ent_curve].fillna(method='ffill').fillna(method='bfill').values
+                local_ent, local_comp = compute_local_entropy_complexity(vals, window=window_size)
+                df_copy[f'{ent_curve}_LocalEntropy'] = local_ent
+                df_copy[f'{ent_curve}_LocalComplexity'] = local_comp
+            else:
+                df_copy[f'{ent_curve}_LocalEntropy']    = 0
+                df_copy[f'{ent_curve}_LocalComplexity'] = 0
+
+        # ---------------------------------------------------------------------
+        # 2.2 Definimos la lista final de 50 features numéricas
+        # (quitamos las freq_cols y ent_cols globales, usamos las locales)
+        # ---------------------------------------------------------------------
+        final_50 = ( direct_rel_cols
+                   + transform_cols
+                   + indirect_rel_cols
+                   + petrophysical_cols )
+
+        for cstat in key_curves_for_stats:
+            final_50.append(f'{cstat}_Moving_Avg')
+            final_50.append(f'{cstat}_Moving_Var')
+
+        final_50 += depth_cols       # +2
+        final_50 += geo_cols         # +1
+        final_50 += cluster_cols     # +2
+
+        # Ahora agregamos nuestras 3 freq locales y 4 entropía/complexidad => total +7
+        final_50 += local_freq_cols  # +3
+        final_50 += local_ent_cols   # +4
+
+        # Verificación de que sean 50
+        assert len(final_50) == 50, f"Se esperaban 50 col. base, got {len(final_50)}"
+
+        # ---------------------------------------------------------------------
+        # 2.3 Añadimos lat/lon + 3 cat => total 55
+        # ---------------------------------------------------------------------
+        final_50.append('Latitude')
+        final_50.append('Longitude')
+
+        # Columnas categóricas finales con más etiquetas
+        def vsh_fixed_class(vsh_series):
+            """
+            Expande la clasificación de Vsh a 6 etiquetas numéricas en lugar de 3.
+            """
+            labels = []
+            for val in vsh_series:
+                if pd.isna(val):
+                    labels.append(-1)  # Para representar valores desconocidos
+                elif val < 0.15:
+                    labels.append(0)  # Muy Bajo
+                elif val < 0.3:
+                    labels.append(1)  # Bajo
+                elif val < 0.45:
+                    labels.append(2)  # Medio-Bajo
+                elif val < 0.6:
+                    labels.append(3)  # Medio
+                elif val < 0.75:
+                    labels.append(4)  # Medio-Alto
+                else:
+                    labels.append(5)  # Alto
+            return pd.Categorical(labels, categories=[0, 1, 2, 3, 4, 5, -1], ordered=False)
+
+        def phi_kmeans_class(phi_series, n_clusters=10):
+            """
+            Expande Phi_class a 10 etiquetas utilizando KMeans.
+            """
+            phi_clean = phi_series.fillna(phi_series.mean()).to_frame()
+            kmeans_phi = KMeans(n_clusters=n_clusters, random_state=42)
+            return pd.Categorical(kmeans_phi.fit_predict(phi_clean), categories=list(range(n_clusters)), ordered=False)
+
+        def sw_vsh_cluster(sw_series, vsh_series, n_clusters=12):
+            """
+            Expande SwVsh_class a 12 etiquetas utilizando KMeans.
+            """
+            df_2d = pd.DataFrame({
+                'Sw': sw_series.fillna(sw_series.mean()), 
+                'Vsh': vsh_series.fillna(vsh_series.mean())
+            })
+            kmeans_2d = KMeans(n_clusters=n_clusters, random_state=42)
+            return pd.Categorical(kmeans_2d.fit_predict(df_2d), categories=list(range(n_clusters)), ordered=False)
+
+        df_copy['Vsh_class']   = vsh_fixed_class(df_copy['Vsh'])
+        df_copy['Phi_class']   = phi_kmeans_class(df_copy['Phi_avg'])
+        df_copy['SwVsh_class'] = sw_vsh_cluster(df_copy['Sw_archie'], df_copy['Vsh'])
+
+        final_50 += ['Vsh_class', 'Phi_class', 'SwVsh_class']
+
+        # ---------------------------------------------------------------------
+        # 2.4 Armamos DataFrame final
+        # ---------------------------------------------------------------------
+        seen = set()
+        final_order = []
+        for colx in final_50:
+            if colx not in seen:
+                seen.add(colx)
+                final_order.append(colx)
+                
+        # Aseguramos que las columnas objetivo se incluyan en el DataFrame final
+        for c in curves_to_predict:
+            if c in df_copy.columns and c not in seen:
+                final_order.append(c)
+                seen.add(c)
+
+        existing_cols = [c for c in final_order if c in df_copy.columns]
+        df_final = df_copy[existing_cols].copy()
+
+        # Verificamos cuántas columnas base tenemos (sin contar curves_to_predict)
+        base_cols = [c for c in existing_cols if c not in curves_to_predict]
+        if len(base_cols) != 55:
+            logger.warning(f"[{well_name}] Se esperaban 55 col. base => got {len(base_cols)}. "
+                           "Tal vez faltan lat/lon o hubo datos nulos en clusterización.")
+
+        # Asegurar tipo categórico
+        for cat_col in ['Vsh_class','Phi_class','SwVsh_class']:
+            if cat_col in df_final.columns:
+                df_final[cat_col] = pd.Categorical(df_final[cat_col])
+
+        engineered_data[well_name] = df_final
+
+    # -------------------------------------------------------------------------
+    # 3. feature_info
+    # -------------------------------------------------------------------------
+    feature_info = {}
+    if len(engineered_data) > 0:
+        example_well = next(iter(engineered_data))
+        example_df   = engineered_data[example_well]
+        for col in example_df.columns:
+            if col in ('Latitude','Longitude'):
+                feature_info[col] = 'coordinate'
+            elif col in ('Formation', 'Well_ID') or 'class' in col.lower() or 'cluster' in col.lower():
+                feature_info[col] = 'categorical'
+            elif col in curves_to_predict:
+                # Para las columnas objetivo, verificamos si son categóricas o numéricas
+                if pd.api.types.is_categorical_dtype(example_df[col]) or example_df[col].dtype == 'object':
+                    feature_info[col] = 'categorical'
+                else:
+                    feature_info[col] = 'numerical'
+            elif pd.api.types.is_categorical_dtype(example_df[col]):
+                feature_info[col] = 'categorical'
+            else:
+                feature_info[col] = 'numerical'
+    else:
+        logger.warning("No wells => no feature_info created.")
+
     return engineered_data, feature_info

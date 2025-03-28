@@ -12,48 +12,11 @@ RANDOM_SEED = 42  # Random seed for reproducibility
 MIN_CURVES = 5    # Minimum number of curves a well must have to be included
 
 # ----------------------------------------------------------------------------------
-# Default Model hyperparameters
-# (These are the "fallback" defaults if not overridden by the optimizer search)
-# ----------------------------------------------------------------------------------
-DEFAULT_NUM_LAYERS = 3                # Number of hidden layers
-DEFAULT_NUM_UNITS = 64                # Number of neurons in each hidden layer
-DEFAULT_DROPOUT_RATE = 0.2            # Dropout rate for regularization
-DEFAULT_ACTIVATION = "relu"           # Activation function for hidden layers
-DEFAULT_WEIGHT_INITIALIZER = "glorot_uniform"  # Weight initialization method
-DEFAULT_L1_REG = 0.0                  # L1 regularization parameter
-DEFAULT_L2_REG = 0.0                  # L2 regularization parameter
-DEFAULT_USE_BATCH_NORM = False        # Whether to use batch normalization
-DEFAULT_USE_SKIP_CONNECTIONS = False  # Whether to use skip connections (residual-style)
-DEFAULT_USE_HIGHWAY = False           # Whether to use highway network gating
-
-# ----------------------------------------------------------------------------------
-# Training hyperparameters
-# ----------------------------------------------------------------------------------
-DEFAULT_OPTIMIZER_TYPE = 'adam'       # Optimizer type (adam, sgd, rmsprop)
-DEFAULT_LEARNING_RATE = 0.001         # Learning rate
-DEFAULT_BATCH_SIZE = 2048               # Batch size
-DEFAULT_EPOCHS = 50                   # Number of epochs
-DEFAULT_SEQUENCE_LENGTH = 5           # For CNN/sequential data if relevant
-DEFAULT_MOMENTUM = 0.0                # Momentum parameter (used if optimizer = sgd)
-DEFAULT_LOSS_FUNCTION = 'mse'         # Loss function for model training (mse, mae, etc.)
-DEFAULT_USE_LEARNING_RATE_DECAY = False  # Whether to use time-based LR decay
-DEFAULT_USE_EARLY_STOPPING = False    # Whether to use early stopping
-
-# ----------------------------------------------------------------------------------
-# Callback hyperparameters
-# ----------------------------------------------------------------------------------
-TRAINER_EARLY_STOPPING_PATIENCE = 10  # Patience for early stopping
-TRAINER_LR_DECAY_FACTOR = 0.5         # Factor for learning rate decay
-TRAINER_LR_DECAY_PATIENCE = 5         # Patience for LR decay
-TRAINER_MONITOR_METRIC = 'val_loss'   # Metric to monitor for callbacks
-TRAINER_USE_PRUNING = False           # Whether to use pruning (Optuna) during training
-
-# ----------------------------------------------------------------------------------
 # Optimization hyperparameters
 # ----------------------------------------------------------------------------------
-OPTIM_N_TRIALS = 500         # Number of optimization trials
-OPTIM_TOP_N = 2           # Number of top configurations to select
-OPTIM_N_JOBS = 1          # Number of parallel jobs for optimization (75% of core avaliables in CPU)
+OPTIM_N_TRIALS = 5              # Number of optimization trials
+OPTIM_TOP_TRIALS = 3            # Number of top configurations to select
+N_JOBS_GPU = 1                  # Number of parallel jobs running on GPU
 
 # ----------------------------------------------------------------------------------
 # Hyperparameter search spaces
@@ -61,56 +24,28 @@ OPTIM_N_JOBS = 1          # Number of parallel jobs for optimization (75% of cor
 # ----------------------------------------------------------------------------------
 
 # Range for the number of layers (depth of the MLP)
-# OPTIM_NUM_LAYERS_RANGE = (1, 10)
-OPTIM_NUM_LAYERS_RANGE = (15, 20)  # Redes más profundas
-
+OPTIM_NUM_LAYERS_RANGE = (3, 7)  # Adjusted for stability
 
 # Possible sizes for each hidden layer
-OPTIM_NUM_UNITS_OPTIONS = [32, 64, 128, 256, 512]
-
-# Whether to use skip connections
-OPTIM_USE_SKIP_CONNECTIONS_OPTIONS = [True, False]
-
-# Whether to use highway networks
-# OPTIM_USE_HIGHWAY_OPTIONS = [True, False]
-OPTIM_USE_HIGHWAY_OPTIONS = [True]  # Forzamos Highway Networks
-
+OPTIM_NUM_UNITS_OPTIONS = [32, 64, 128, 256]  # Reduced to prevent excessive model complexity
 
 # Range for dropout rate
-# OPTIM_DROPOUT_RATE_RANGE = (0.0, 0.6)
-OPTIM_DROPOUT_RATE_RANGE = (0.1, 0.4)  # Más dropout para evitar sobreajuste
-
+OPTIM_DROPOUT_RATE_RANGE = (0.2, 0.5)  # Adjusted lower to reduce excessive dropout
 
 # Possible activation functions
-OPTIM_ACTIVATION_OPTIONS = ["leaky_relu", "elu", "sigmoid"]
+OPTIM_ACTIVATION_OPTIONS = ["relu", "tanh", "elu", 'sigmoid', 'swish']  # Removed sigmoid due to saturation issues
 
 # Possible optimizers
-OPTIM_OPTIMIZER_OPTIONS = ["adam", "rmsprop"]
+OPTIM_OPTIMIZER_OPTIONS = ["adam", "nadam", 'rmsprop']  # Removed rmsprop due to instability concerns
 
 # Range for the learning rate (log scale friendly)
-# OPTIM_LEARNING_RATE_RANGE = (1e-5, 1e-2)
-OPTIM_LEARNING_RATE_RANGE = (1e-4, 5e-3)  # Learning rate más bajo para redes profundas
-
+OPTIM_LEARNING_RATE_RANGE = (1e-6, 1e-4)  # Narrowed down to lower learning rates to prevent NaNs
 
 # Possible batch sizes
-# OPTIM_BATCH_SIZE_OPTIONS = [64, 128, 256, 512]
-OPTIM_BATCH_SIZE_OPTIONS = [64, 128]  # Reducimos batch size para evitar problemas de memoria
+OPTIM_BATCH_SIZE_OPTIONS = [32, 64, 128, 254]  # Smaller batch sizes to enhance numerical stability
 
-
-# Range for the number of epochs
-OPTIM_EPOCHS_RANGE = (30, 80)
-
-# Possible weight initializer methods
-OPTIM_WEIGHT_INITIALIZER_OPTIONS = [
-    "glorot_uniform", "he_uniform", "lecun_uniform", "random_normal", "he_normal"
-]
-
-# Range for L1 and L2 regularization
-OPTIM_L1_REG_RANGE = (1e-6, 1e-2)
-OPTIM_L2_REG_RANGE = (1e-6, 1e-2)
-
-# Range for momentum (used if optimizer = sgd)
-OPTIM_MOMENTUM_RANGE = (0.0, 0.99)
+# Range for L1 regularization
+OPTIM_L1_REG_RANGE = (1e-6, 1e-4)  # Narrowed to lower values to prevent numerical instability
 
 # ----------------------------------------------------------------------------------
 # Cross-validation hyperparameters
@@ -120,4 +55,4 @@ CV_SPLITS = 5  # Number of cross-validation folds
 # ----------------------------------------------------------------------------------
 # Evaluation metrics
 # ----------------------------------------------------------------------------------
-EVAL_METRICS = ['mae', 'mse', 'rmse', 'r2']  # Metrics to calculate
+

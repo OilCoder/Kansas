@@ -96,7 +96,7 @@
 	// "updateContentCommand": "",
 
 	// 10. Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "pip install numpy==1.23.5 && pip install welly lasio striplog dash missingno optuna-dashboard optuna-integration scikeras==0.12.0 ipywidgets && pip uninstall -y keras && pip install keras==2.12.0 && python -m ipykernel install --user --name tensorflow-gpu --display-name 'TensorFlow GPU'",
+	"postCreateCommand": "pip install numpy==1.23.5 && pip install welly lasio striplog dash missingno optuna-dashboard optuna-integration GPUtil scikeras==0.12.0 ipywidgets && pip uninstall -y keras && pip install keras==2.12.0 && python -m ipykernel install --user --name tensorflow-gpu --display-name 'TensorFlow GPU'",
 
 	// 11. Use 'postStartCommand' to run a command each time the container starts successfully.
 	// "postStartCommand": "",

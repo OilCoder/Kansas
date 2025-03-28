@@ -128,6 +128,11 @@ class ProjectManager:
                 # formation_interval is a tuple: (top_depth, base_depth, formation_name)
                 formation_name = formation_interval[2]
                 all_formations.add(formation_name)
+        
+        # Remove 'Unknown' from the set of formations if present
+        if 'Unknown' in all_formations:
+            all_formations.remove('Unknown')
+            
         self.unique_formations = all_formations
 
     def extract_formation_data(self, well, las_file):
