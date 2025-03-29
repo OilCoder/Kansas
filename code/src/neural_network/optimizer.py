@@ -14,7 +14,7 @@ from  src.neural_network.hyperparameters import (
     N_JOBS_GPU,
 )
 
-def objective(trial, X, y, metrics, classification_output_shape):
+def objective(trial, X, y, unknown_index, classification_output_shape):
     """Función objetivo para la optimización de hiperparámetros con Optuna."""
     
     # Extraer hiperparámetros del trial
@@ -29,7 +29,7 @@ def objective(trial, X, y, metrics, classification_output_shape):
             input_shape=X.shape[1:],
             regression_output_shape=1, 
             classification_output_shape=classification_output_shape,
-            metrics=metrics
+            unknown_index=unknown_index
         )
 
         # Callbacks para el entrenamiento
@@ -64,7 +64,7 @@ def objective(trial, X, y, metrics, classification_output_shape):
 
     return val_loss
 
-def optimize_hyperparameters(X, y, metrics, classification_output_shape, n_trials=OPTIM_N_TRIALS, top_n=OPTIM_TOP_TRIALS):
+def optimize_hyperparameters(X, y, unknown_index, classification_output_shape, n_trials=OPTIM_N_TRIALS, top_n=OPTIM_TOP_TRIALS):
     current_dir = os.path.dirname(__file__)
     log_file = os.path.join(current_dir, 'files', 'optuna_journal.log')
     storage = JournalStorage(JournalFileStorage(log_file))
@@ -81,7 +81,7 @@ def optimize_hyperparameters(X, y, metrics, classification_output_shape, n_trial
 
     # Ejecutar optimización
     study.optimize(
-        lambda trial: objective(trial, X, y, metrics, classification_output_shape),
+        lambda trial: objective(trial, X, y, unknown_index, classification_output_shape),
         n_trials=n_trials,
         n_jobs=N_JOBS_GPU,
         show_progress_bar=True

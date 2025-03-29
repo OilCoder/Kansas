@@ -3,7 +3,12 @@
 import tensorflow as tf
 from tensorflow.keras import layers, models, regularizers
 from src.neural_network.metrics import masked_sparse_categorical_crossentropy
-
+# Importa tus funciones/métricas personalizadas:
+from src.neural_network.metrics import (
+    masked_sparse_categorical_crossentropy,
+    MaskedSparseCategoricalAccuracy,
+    MaskedTopKAccuracy,
+)
 from  src.neural_network.hyperparameters import (
     OPTIM_NUM_LAYERS_RANGE,
     OPTIM_NUM_UNITS_OPTIONS,
@@ -43,7 +48,7 @@ def get_hyperparams_from_trial(trial):
 
     return hyperparams
 
-def build_model(hyperparams, input_shape, regression_output_shape, classification_output_shape, metrics):
+def build_model(hyperparams, input_shape, regression_output_shape, classification_output_shape, unknown_index):
     """
     Construye y compila un modelo flexible con activaciones diferenciadas por capas tempranas y tardías.
     """
@@ -80,20 +85,35 @@ def build_model(hyperparams, input_shape, regression_output_shape, classificatio
         name='classification_output'
     )(x)
 
+
     # Modelo multi-output
     model = models.Model(inputs=inputs, outputs=[regression_output, classification_output])
 
-    with tf.keras.utils.custom_object_scope({'masked_sparse_categorical_crossentropy': masked_sparse_categorical_crossentropy}):
+    # Diccionario de métricas por salida:
+    # En cada lista, NO uses prefijos como 'regression_output_mae', basta con 'mae', 'rmse', etc.
+    metrics_dict = {
+        'regression_output': [
+            tf.keras.metrics.MeanAbsoluteError(name='mae'),
+            tf.keras.metrics.MeanSquaredError(name='mse'),
+            tf.keras.metrics.RootMeanSquaredError(name='rmse')
+        ],
+        'classification_output': [
+            tf.keras.metrics.SparseCategoricalAccuracy(name='sparse_acc'),
+            MaskedSparseCategoricalAccuracy(unknown_index=unknown_index, name='masked_sparse_acc'),
+            MaskedTopKAccuracy(unknown_index=unknown_index, k=3, name='masked_top_k_acc')
+        ]
+    }
 
-        # Compilación del modelo con la función corregida
+    # Usamos custom_object_scope para registrar la loss personalizada en el modelo
+    with tf.keras.utils.custom_object_scope({'masked_sparse_categorical_crossentropy': masked_sparse_categorical_crossentropy}):
         model.compile(
             optimizer=_get_optimizer(hyperparams['optimizer'], hyperparams['learning_rate']),
             loss={
                 'regression_output': 'mse',
                 'classification_output': masked_sparse_categorical_crossentropy
             },
-            metrics=metrics,
-            jit_compile=False 
+            metrics=metrics_dict,
+            jit_compile=False
         )
 
     return model

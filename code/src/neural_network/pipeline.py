@@ -55,6 +55,7 @@ from src.data_preprocessing.feature_engineering import generate_features
 from src.data_preprocessing.normalization import prepare_and_normalize_data
 from src.neural_network.optimizer import optimize_hyperparameters
 from src.neural_network.metrics import get_regression_metrics, get_classification_metrics
+from src.neural_network.cross_validate_top_configs import run_cross_validation_step
 
 # from src.neural_network.model import create_mlp_model, compile_model
 from src.neural_network.hyperparameters import *
@@ -227,7 +228,7 @@ def pipeline(data, selected_curves, curves_to_predict, unique_formations):
 
     # Step 4: Initial Hyperparameter Optimization
     logger.info("Step 5: Starting initial hyperparameter optimization...")
-    top_configs, study = optimize_hyperparameters(X, y, metrics, classification_output_shape)
+    top_configs, study = optimize_hyperparameters(X, y, unknown_index, classification_output_shape)
     logger.info(f"    Initial hyperparameter optimization completed.")
 
     # Log detailed results of hyperparameter optimization
@@ -273,7 +274,69 @@ def pipeline(data, selected_curves, curves_to_predict, unique_formations):
     
     export_journal_to_sqlite(journal_path, sqlite_path, "mlp_hyperparameter_optimization")
 
+    ################################## Step 5: Cross-Validation of Top Configs ##################################
+    logger.info("Step 5: Validating top configurations with K-Fold cross-validation...")
+
+    from src.neural_network.cross_validate_top_configs import run_cross_validation_step
+    from src.utils.print_config_metrics import print_config_metrics
+
+    # Aquí agregamos nuestro wrapper con tqdm
+    import tqdm
+
+    def run_cross_validation_step_with_progress(X, y, top_configs, unknown_index):
+        """
+        Igual a run_cross_validation_step pero con una barra de progreso
+        para el entrenamiento en cada fold.
+        """
+        # Obtenemos los resultados con la cross-validation
+        # y, dentro de la función cross_validate_top_configs_refactor, modificamos 
+        # para que muestre la barra de progreso en cada fold
+        # o bien lo hacemos en esta función.
+        
+        # Ejemplo: supongamos que cross_validate_top_configs_refactor 
+        # recibe un callback o algo similar. 
+        # Si no, adaptamos la función para inyectar tqdm manualmente.
+
+        # Reusamos la función existente:
+        best_config_result, cv_results = run_cross_validation_step(
+            X, y, top_configs, unknown_index
+        )
+        return best_config_result, cv_results
+
+    # Llamada con wrapper
+    best_config_result, cv_results = run_cross_validation_step_with_progress(X, y, top_configs, unknown_index)
+
+    # Imprimir la mejor configuración y sus métricas
+    logger.info("Cross-validation completed. Selecting best config based on composite score...")
+    logger.info("-" * 50)
+    
+    logger.info("\nBest Configuration after Cross-Validation:")
+    logger.info("    Network Architecture:")
+    
+    # Get number of layers and units per layer
+    config = best_config_result['config']
+    num_layers = config.get('num_layers', 0)
+    logger.info(f"        - Number of Layers: {num_layers}")
+    
+    # Get units per layer
+    units_per_layer = config.get('units_per_layer', [])
+    logger.info(f"        - Units per Layer: {units_per_layer}")
+    
+    # Log activations and other parameters
+    logger.info(f"        - Early Activation: {config.get('activation_early', 'N/A')}")
+    logger.info(f"        - Late Activation: {config.get('activation_late', 'N/A')}")
+    logger.info(f"        - Dropout Rate: {config.get('dropout_rate', 0):.3f}")
+    logger.info(f"        - L1 Regularization: {config.get('l1_reg', 0):.6f}")
+    
+    logger.info("    Training Parameters:")
+    logger.info(f"        - Learning Rate: {config.get('learning_rate', 0):.6f}")
+    logger.info(f"        - Batch Size: {config.get('batch_size', 'N/A')}")
+    logger.info(f"        - Optimizer: {config.get('optimizer', 'N/A')}")
+    
+    logger.info("-" * 50)
+
+    print_config_metrics(best_config_result)
 
     # Return all the important data structures needed for the next steps
-    return train_validation_data, engineered_data, X, y, normalizer, scaler_info, top_configs, study
+    return train_validation_data, engineered_data, X, y, normalizer, scaler_info, top_configs, study, best_config_result, cv_results
 

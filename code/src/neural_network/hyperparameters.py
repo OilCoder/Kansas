@@ -14,8 +14,8 @@ MIN_CURVES = 5    # Minimum number of curves a well must have to be included
 # ----------------------------------------------------------------------------------
 # Optimization hyperparameters
 # ----------------------------------------------------------------------------------
-OPTIM_N_TRIALS = 5              # Number of optimization trials
-OPTIM_TOP_TRIALS = 3            # Number of top configurations to select
+OPTIM_N_TRIALS = 5000              # Number of optimization trials
+OPTIM_TOP_TRIALS = 2            # Number of top configurations to select
 N_JOBS_GPU = 1                  # Number of parallel jobs running on GPU
 
 # ----------------------------------------------------------------------------------
