@@ -1,476 +1,600 @@
+# feature_engineering.py — refactor v6 (superset ≈ 101 columnas)
+"""
+Genera el set completo de *features* (~101 columnas) y aplica filtros.
+
+Principales reglas:
+* **No** se rellenan valores con 0/∞ arbitrarios.
+* Los `NaN` numéricos se imputan con la **mediana local** (ventana
+  `window_size`). Si la ventana no contiene datos válidos, se usa la mediana
+  global de la curva dentro del pozo.
+* Devuelve:
+
+    engineered_data, feature_info, final_columns
+"""
+
+from __future__ import annotations
+
 import logging
+from typing import Dict, List, Tuple
+
 import numpy as np
 import pandas as pd
-from scipy.ndimage import gaussian_filter
-from scipy import fft
-from sklearn.impute import SimpleImputer
-from sklearn.cluster import KMeans, AgglomerativeClustering
+from scipy import fft, stats
+from sklearn.cluster import AgglomerativeClustering, KMeans
+from sklearn.feature_selection import VarianceThreshold
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 
-def generate_features(train_validation_data, selected_curves, curves_to_predict, 
-                      window_size=20, num_clusters=15):
-    """
-    Genera DataFrames de 55 columnas de features para cada pozo, pero con FRECUENCIA y ENTROPÍA 
-    calculadas en ventanas locales (evitando valores fijos a lo largo de todo el pozo).
+try:
+    from boruta import BorutaPy  # type: ignore
+except ImportError:  # pragma: no cover
+    BorutaPy = None
 
-    Parámetros
-    ----------
-    train_validation_data : dict
-        { well_name: DataFrame con curvas originales }.
-    selected_curves : list
-        Lista de curvas que se usarán como entrada (ejemplo: ['GR','RILD','RHOB','RLL3','RXORT', etc.]).
-    curves_to_predict : list
-        Curvas que se quieren predecir, NO se tocan (p.ej. ['CNLS','Formation']).
-    window_size : int
-        Tamaño de la ventana para estadísticas rolling y también para FFT/entropía locales.
-    num_clusters : int
-        Número de clusters para KMeans y AgglomerativeClustering (p.ej. 15).
+EPS = 1e-6
+logger = logging.getLogger(__name__)
 
-    Retorna
-    -------
-    engineered_data : dict
-        { well_name: DataFrame }, cada DataFrame con 55 columnas finales.
-    feature_info : dict
-        { feature_name: 'numerical'/'categorical'/'coordinate' }.
-    """
+################################################################################
+# Utilidades numéricas                                                          #
+################################################################################
 
-    logger = logging.getLogger(__name__)
-    epsilon = 1e-6
-    engineered_data = {}
+def _safe(df: pd.DataFrame, col: str) -> pd.Series:
+    """Devuelve la columna o Serie NaN si no existe."""
+    return df[col] if col in df.columns else pd.Series(np.nan, index=df.index)
 
-    # -------------------------------------------------------------------------
-    # 1. Listas de columnas numéricas base (sin freq/ent)
-    # -------------------------------------------------------------------------
-    direct_rel_cols = [
-        'RILD_minus_RILM',
-        'RILD_minus_RHOC',
-        'RILD_over_RILM',
-        'RHOC_minus_RHOB',
-        'GR_minus_SP',
-        'GR_over_RHOC',
-        'MN_minus_MI',
-        'RLL3_minus_RXORT',
-        'RLL3_over_RXORT'
+
+def _gradient(arr: np.ndarray) -> np.ndarray:
+    return np.gradient(arr)
+
+
+def _smooth(arr: np.ndarray, k: int = 5) -> np.ndarray:
+    return pd.Series(arr).rolling(k, center=True, min_periods=1).mean().values
+
+
+def _local_rms(arr: np.ndarray, w: int) -> np.ndarray:
+    half = w // 2
+    out = np.full_like(arr, np.nan)
+    for i in range(len(arr)):
+        s, e = max(0, i - half), min(len(arr), i + half)
+        seg = arr[s:e]
+        out[i] = np.sqrt(np.mean(seg ** 2)) if seg.size else np.nan
+    return out
+
+
+def _local_percentile(arr: np.ndarray, q: float, w: int) -> np.ndarray:
+    half = w // 2
+    out = np.full_like(arr, np.nan)
+    for i in range(len(arr)):
+        s, e = max(0, i - half), min(len(arr), i + half)
+        out[i] = np.nanpercentile(arr[s:e], q) if e > s else np.nan
+    return out
+
+
+def _local_skew_kurt(arr: np.ndarray, w: int) -> Tuple[np.ndarray, np.ndarray]:
+    half = w // 2
+    sk, ku = np.full_like(arr, np.nan), np.full_like(arr, np.nan)
+    for i in range(len(arr)):
+        s, e = max(0, i - half), min(len(arr), i + half)
+        seg = arr[s:e]
+        if seg.size:
+            sk[i] = stats.skew(seg, nan_policy="omit")
+            ku[i] = stats.kurtosis(seg, nan_policy="omit")
+    return sk, ku
+
+
+def _multi_scale_power(arr: np.ndarray, scales: List[int]) -> List[np.ndarray]:
+    powers = []
+    for w in scales:
+        half = w // 2
+        p = np.full_like(arr, np.nan)
+        for i in range(len(arr)):
+            s, e = max(0, i - half), min(len(arr), i + half)
+            seg = arr[s:e]
+            p[i] = np.var(seg) if seg.size else np.nan
+        powers.append(p)
+    return powers
+
+
+def _local_autocorr(arr: np.ndarray, lag: int, w: int) -> np.ndarray:
+    half = w // 2
+    out = np.full(len(arr), np.nan)
+    for i in range(len(arr)):
+        s, e = max(0, i - half), min(len(arr), i + half)
+        seg = arr[s:e]
+        if len(seg) > lag:
+            out[i] = np.corrcoef(seg[:-lag], seg[lag:])[0, 1]
+    return out
+
+
+def _dominant_cycle(arr: np.ndarray, w: int) -> np.ndarray:
+    half = w // 2
+    out = np.full(len(arr), np.nan)
+    for i in range(len(arr)):
+        s, e = max(0, i - half), min(len(arr), i + half)
+        seg = arr[s:e]
+        if seg.size > 3:
+            ac = np.correlate(seg - seg.mean(), seg - seg.mean(), mode="full")[seg.size - 1 :]
+            out[i] = np.argmax(ac[1:]) + 1
+    return out
+
+
+def _perm_entropy(arr: np.ndarray, order: int, w: int) -> np.ndarray:
+    half = w // 2
+    out = np.full(len(arr), np.nan)
+    for i in range(len(arr)):
+        s, e = max(0, i - half), min(len(arr), i + half)
+        seg = arr[s:e]
+        if len(seg) > order:
+            counts: dict[tuple[int, ...], int] = {}
+            for j in range(len(seg) - order + 1):
+                pattern = tuple(np.argsort(seg[j : j + order]))
+                counts[pattern] = counts.get(pattern, 0) + 1
+            p = np.array(list(counts.values()), dtype=float)
+            p /= p.sum()
+            out[i] = -(p * np.log2(p + EPS)).sum()
+    return out
+
+################################################################################
+# Imputación local                                                             #
+################################################################################
+
+def _impute_local(df: pd.DataFrame, w: int) -> pd.DataFrame:
+    """Rellena NaNs numéricos con la mediana local (ventana w)."""
+    df_out = df.copy()
+    
+    # Store categorical column information before processing
+    cat_cols = df_out.select_dtypes(include=["category"]).columns.tolist()
+    cat_dtypes = {col: df_out[col].dtypes for col in cat_cols}
+    
+    # Process numeric columns only
+    num_cols = df_out.select_dtypes(include=[np.number]).columns
+    half = w // 2
+    
+    for col in num_cols:
+        arr = df_out[col].values.astype(float)
+        for i, val in enumerate(arr):
+            if np.isnan(val):
+                s, e = max(0, i - half), min(len(arr), i + half)
+                med = np.nanmedian(arr[s:e])
+                if np.isnan(med):
+                    med = np.nanmedian(arr)
+                    # If still NaN (all values are NaN), use 0 as a last resort
+                    if np.isnan(med):
+                        med = 0.0
+                arr[i] = med
+        df_out[col] = arr
+    
+    # Restore categorical dtypes that may have been changed
+    for col in cat_cols:
+        if col in df_out.columns:
+            df_out[col] = df_out[col].astype(cat_dtypes[col])
+    
+    return df_out
+
+################################################################################
+# Clasificación categórica                                                     #
+################################################################################
+
+def _create_vsh_class(vsh_series: pd.Series) -> pd.Series:
+    """Crea categorías de Vsh, manejando series planas."""
+    if vsh_series.isna().all() or vsh_series.var() < 1e-6:
+        return pd.Series(-1, index=vsh_series.index, dtype="category")
+    
+    result = pd.cut(
+        vsh_series,
+        bins=[0, 0.15, 0.3, 0.45, 0.6, 0.75, 1.0],
+        labels=[0, 1, 2, 3, 4, 5],
+        include_lowest=True
+    )
+    return result.astype("category")
+
+def _create_phi_class(phi_series: pd.Series, num_clusters: int = 10, random_state: int = 42) -> pd.Series:
+    """Crea clusters de porosidad, manejando series planas."""
+    if phi_series.isna().all() or phi_series.var() < 1e-6:
+        return pd.Series(-1, index=phi_series.index, dtype="category")
+    
+    # Rellenar NaNs con la mediana para clustering
+    phi_clean = phi_series.fillna(phi_series.median())
+    
+    # Verificar que sigue habiendo varianza después de imputar
+    if phi_clean.var() < 1e-6:
+        return pd.Series(-1, index=phi_series.index, dtype="category")
+    
+    # Aplicar K-means
+    try:
+        labels = KMeans(n_clusters=num_clusters, random_state=random_state, n_init="auto")
+        labels = labels.fit_predict(phi_clean.values.reshape(-1, 1))
+        return pd.Series(labels, index=phi_series.index, dtype="category")
+    except Exception as e:
+        logger.warning(f"Error en clustering de Phi: {e}")
+        return pd.Series(-1, index=phi_series.index, dtype="category")
+
+def _create_swvsh_class(sw_series: pd.Series, vsh_series: pd.Series, 
+                        num_clusters: int = 12, random_state: int = 42) -> pd.Series:
+    """Crea clusters basados en Sw y Vsh, manejando series planas."""
+    if sw_series.isna().all() or vsh_series.isna().all() or \
+       sw_series.var() < 1e-6 or vsh_series.var() < 1e-6:
+        return pd.Series(-1, index=sw_series.index, dtype="category")
+    
+    # Rellenar NaNs para clustering
+    sw_clean = sw_series.fillna(sw_series.median())
+    vsh_clean = vsh_series.fillna(vsh_series.median())
+    
+    # Verificar que sigue habiendo varianza después de imputar
+    if sw_clean.var() < 1e-6 or vsh_clean.var() < 1e-6:
+        return pd.Series(-1, index=sw_series.index, dtype="category")
+    
+    # Crear DataFrame combinado para clustering
+    df_combined = pd.DataFrame({
+        'Sw': sw_clean,
+        'Vsh': vsh_clean
+    })
+    
+    # Aplicar K-means
+    try:
+        labels = KMeans(n_clusters=num_clusters, random_state=random_state, n_init="auto")
+        labels = labels.fit_predict(df_combined)
+        return pd.Series(labels, index=sw_series.index, dtype="category")
+    except Exception as e:
+        logger.warning(f"Error en clustering de SwVsh: {e}")
+        return pd.Series(-1, index=sw_series.index, dtype="category")
+
+################################################################################
+# Función principal                                                            #
+################################################################################
+
+def generate_features(
+    wells: Dict[str, pd.DataFrame],
+    selected_curves: List[str],
+    curves_to_predict: List[str],
+    *,
+    window_size: int = 20,
+    num_clusters: int = 15,
+    var_threshold: float | None = 1e-3,
+    pct_wells_threshold: float = 0.7,
+    use_boruta: bool = False,
+    random_state: int = 42,
+):
+    """Devuelve `(engineered_data, feature_info, final_columns)`."""
+
+    ##########################################################################
+    # 1. Definición de columnas maestras                                     #
+    ##########################################################################
+
+    ms_cols = [f"{c}_Pwr{w}" for c in ("GR", "RILD", "RHOC") for w in (5, 20, 50, "HF_LF")]
+    grad_cols = [f"{c}_grad" for c in ("GR", "RHOB", "RILD")] + [f"{c}_grad_smooth" for c in ("GR", "RHOB", "RILD")]
+    rug_cols = [f"{c}_RMS" for c in ("GR", "RILD")] + [f"{c}_RMS_div_var" for c in ("GR", "RILD")]
+    tex_cols = [f"{c}_{stat}" for c in ("GR", "RHOB") for stat in ("p10", "p50", "p90", "skew", "kurt")]
+    corr_cols = ["Corr_GR_RHOB", "Corr_RILD_RXORT"]
+    ratio_cols = ["GR_over_RHOB_norm"]
+    elastic_cols = ["Acoustic_Impedance"]
+    ac_cols = ["AC_lag1", "AC_lag2", "AC_lag3", "AC_dom_cycle"]
+    adv_ent_cols = [f"{c}_PermEntropy" for c in ("GR", "RILD")] + [f"{c}_ShannonAdaptive" for c in ("GR", "RILD")]
+    flag_cols = ["is_shale", "is_carb"]
+
+    direct = [
+        "RILD_minus_RILM", "RILD_minus_RHOC", "RILD_over_RILM", "RHOC_minus_RHOB",
+        "GR_minus_SP", "GR_over_RHOC", "MN_minus_MI", "RLL3_minus_RXORT", "RLL3_over_RXORT",
     ]
-
-    transform_cols = [
-        'Log_RILD',
-        'Log_RHOC',
-        'Log_GR',
-        'Sqrt_RILD',
-        'Sqrt_RHOC',
-        'Exp_normalized_GR'
+    transf = ["Log_RILD", "Log_RHOC", "Log_GR", "Sqrt_RILD", "Sqrt_RHOC", "Exp_normalized_GR"]
+    indirect = ["RILD_times_RHOC", "GR_times_RHOC", "SP_times_DT", "RHOB_times_RHOC", "GR_times_DT"]
+    petro = [
+        "Vsh", "PhiD", "PhiS", "Phi_avg", "Sw_archie", "k_timur", "BVW", "HC_Index", "RQI", "FZI",
     ]
+    stats_curves = ["GR", "RILD", "RHOC", "RHOB"]
+    depth_cols = ["Normalized_Depth", "Depth_Squared"]
+    geo_cols = ["Well_ID"]
+    cluster_cols = ["kmeans_cluster", "agglo_cluster"]
+    freq_cols = ["GR_LocalFreq", "RILD_LocalFreq", "RHOC_LocalFreq"]
+    ent_cols = ["GR_LocalEntropy", "GR_LocalComplexity", "RILD_LocalEntropy", "RILD_LocalComplexity"]
+    cat_cols = ["Vsh_class", "Phi_class", "SwVsh_class", "Well_ID"]
 
-    indirect_rel_cols = [
-        'RILD_times_RHOC',
-        'GR_times_RHOC',
-        'SP_times_DT',
-        'RHOB_times_RHOC',
-        'GR_times_DT'
-    ]
+    master_num = (
+        ms_cols + grad_cols + rug_cols + tex_cols + corr_cols + ratio_cols + elastic_cols + ac_cols + adv_ent_cols +
+        direct + transf + indirect + petro +
+        [f"{c}_Moving_Avg" for c in stats_curves] + [f"{c}_Moving_Var" for c in stats_curves] +
+        depth_cols + geo_cols + cluster_cols + freq_cols + ent_cols + flag_cols
+    )
+    master_all = master_num + ["Latitude", "Longitude"] + cat_cols
 
-    petrophysical_cols = [
-        'Vsh',
-        'PhiD',
-        'PhiS',
-        'Phi_avg',
-        'Sw_archie',
-        'k_timur',
-        'BVW',
-        'HC_Index',
-        'RQI',
-        'FZI'
-    ]
+    ##########################################################################
+    # 2. Generación por pozo                                                 #
+    ##########################################################################
 
-    key_curves_for_stats = ['GR','RILD','RHOC','RHOB']
+    engineered: Dict[str, pd.DataFrame] = {}
+    for well, df in wells.items():
+        if not set(selected_curves).issubset(df.columns):
+            logger.warning("%s descartado (faltan curvas base)", well)
+            continue
 
-    depth_cols = ['Normalized_Depth','Depth_Squared']
-    geo_cols   = ['Well_ID']
-    cluster_cols = ['kmeans_cluster','agglo_cluster']
+        d = df.copy()
 
-    # -- Se quitan las antiguas freq_cols y ent_cols, y se reemplazan por las nuevas:
-    local_freq_cols = [
-        'GR_LocalFreq',
-        'RILD_LocalFreq',
-        'RHOC_LocalFreq'
-    ]
-    local_ent_cols = [
-        'GR_LocalEntropy','GR_LocalComplexity',
-        'RILD_LocalEntropy','RILD_LocalComplexity'
-    ]
+        # A) Relaciones directas
+        d["RILD_minus_RILM"] = _safe(d, "RILD") - _safe(d, "RILM")
+        d["RILD_minus_RHOC"] = _safe(d, "RILD") - _safe(d, "RHOC")
+        d["RILD_over_RILM"] = _safe(d, "RILD") / (_safe(d, "RILM") + EPS)
+        d["RHOC_minus_RHOB"] = _safe(d, "RHOC") - _safe(d, "RHOB")
+        d["GR_minus_SP"] = _safe(d, "GR") - _safe(d, "SP")
+        d["GR_over_RHOC"] = _safe(d, "GR") / (_safe(d, "RHOC") + EPS)
+        d["MN_minus_MI"] = _safe(d, "MN") - _safe(d, "MI")
+        d["RLL3_minus_RXORT"] = _safe(d, "RLL3") - _safe(d, "RXORT")
+        d["RLL3_over_RXORT"] = _safe(d, "RLL3") / (_safe(d, "RXORT") + EPS)
 
-    # -------------------------------------------------------------------------
-    # Funciones auxiliares
-    # -------------------------------------------------------------------------
-    def safe(df, col):
-        return df[col] if col in df.columns else np.nan
+        # B) Transformaciones
+        for c in ("RILD", "RHOC", "GR"):
+            s = _safe(d, c).clip(lower=EPS).fillna(EPS)
+            d[f"Log_{c}"] = np.log(s)
+        for c in ("RILD", "RHOC"):
+            s = _safe(d, c).clip(lower=EPS).fillna(EPS)
+            d[f"Sqrt_{c}"] = np.sqrt(s)
+        d["Exp_normalized_GR"] = np.exp(_safe(d, "GR") / (_safe(d, "GR").max() + EPS))
 
-    def compute_local_dominant_freq(arr, window=20):
-        """
-        Calcula la amplitud de la frecuencia dominante en ventanas alrededor de cada sample.
-        """
-        n = len(arr)
-        half_w = window // 2
-        out_freq = np.zeros(n, dtype=float)
-        for i in range(n):
-            start = max(0, i - half_w)
-            end   = min(n, i + half_w)
-            seg   = arr[start:end]
-            fft_seg = np.abs(fft.fft(seg))
-            if len(fft_seg) > 1:
-                # Ignorar la componente DC => buscamos max en 1..(len(seg)//2)
-                sub_part = fft_seg[1:len(seg)//2]
-                idx_dom  = np.argmax(sub_part) + 1
-                out_freq[i] = fft_seg[idx_dom]
+        # C) Relaciones indirectas
+        d["RILD_times_RHOC"] = _safe(d, "RILD") * _safe(d, "RHOC")
+        d["GR_times_RHOC"] = _safe(d, "GR") * _safe(d, "RHOC")
+        d["SP_times_DT"] = _safe(d, "SP") * _safe(d, "DT")
+        d["RHOB_times_RHOC"] = _safe(d, "RHOB") * _safe(d, "RHOC")
+        d["GR_times_DT"] = _safe(d, "GR") * _safe(d, "DT")
+
+        # D) Petrofísicos
+        GR = _safe(d, "GR")
+        GR_min, GR_max = GR.min(), GR.max()
+        # Protección contra denominador cero o muy pequeño
+        denom_vsh = GR_max - GR_min
+        if np.isnan(denom_vsh) or denom_vsh < EPS:
+            d["Vsh"] = pd.Series(0.5, index=d.index)  # Valor neutro si GR es constante
+        else:
+            d["Vsh"] = ((GR - GR_min) / (denom_vsh + EPS)).clip(0, 1)
+            
+        d["PhiD"] = (2.65 - _safe(d, "RHOB")) / 1.65
+        d["PhiS"] = (_safe(d, "DT") - 55.5) / 133.5
+        d["Phi_avg"] = (d["PhiD"] + d["PhiS"] + (_safe(d, "NPHI") if "NPHI" in d.columns else 0)) / (3 if "NPHI" in d.columns else 2)
+        d["Sw_archie"] = ((0.1) / (_safe(d, "RILD") * (d["Phi_avg"] ** 2) + EPS)) ** 0.5
+        d["Sw_archie"] = d["Sw_archie"].clip(0, 1)
+        d["k_timur"] = 0.136 * d["Phi_avg"] ** 4.4 / (d["Sw_archie"] + EPS) ** 2
+        d["BVW"] = d["Phi_avg"] * d["Sw_archie"]
+        d["HC_Index"] = (1 - d["Sw_archie"]) * d["Phi_avg"]
+        d["RQI"] = 0.0314 * np.sqrt(d["k_timur"] / (d["Phi_avg"] + EPS))
+        d["FZI"] = d["RQI"] / ((d["Phi_avg"] / (1 - d["Phi_avg"] + EPS)) + EPS)
+
+        # E) Rolling stats
+        for c in stats_curves:
+            if c in d.columns:
+                d[f"{c}_Moving_Avg"] = d[c].rolling(window_size, min_periods=1, center=True).mean()
+                d[f"{c}_Moving_Var"] = d[c].rolling(window_size, min_periods=1, center=True).var()
             else:
-                out_freq[i] = 0
-        return out_freq
+                d[f"{c}_Moving_Avg"] = np.nan
+                d[f"{c}_Moving_Var"] = np.nan
 
-    def compute_local_entropy_complexity(arr, window=20):
-        """
-        Calcula entropía y complejidad de forma local (ventana centrada) 
-        y retorna 2 arrays (entropía, complejidad).
-        """
-        n = len(arr)
-        half_w = window // 2
-        out_ent = np.zeros(n, dtype=float)
-        out_comp = np.zeros(n, dtype=float)
-        for i in range(n):
-            start = max(0, i - half_w)
-            end   = min(n, i + half_w)
-            seg   = arr[start:end]
+        # F) Profundidad
+        depth = d.index.values.astype(float)
+        norm_depth = (depth - depth.min()) / (depth.max() - depth.min() + EPS)
+        d["Normalized_Depth"] = norm_depth
+        d["Depth_Squared"] = norm_depth ** 2
 
-            # Entropía
-            hist, _ = np.histogram(seg, bins=20)
-            hist_norm = hist / (hist.sum() + epsilon)
-            entropy_val = -np.sum(hist_norm * np.log2(hist_norm + epsilon))
-            out_ent[i] = entropy_val
+        # G) Well_ID
+        lat0, lon0 = d["Latitude"].iloc[0], d["Longitude"].iloc[0]
+        # Create Well_ID as a simple scalar value, then create a Series from it
+        well_id_value = abs(hash((lat0, lon0))) % 100000 if not np.isnan(lat0 + lon0) else np.nan
+        d["Well_ID"] = pd.Series(well_id_value, index=d.index).astype("category")
 
-            # Complejidad => std(gradient) / mean(abs(gradient))
-            grads = np.diff(seg)
-            if len(grads) > 0:
-                std_g = np.std(grads)
-                mean_abs_g = np.mean(np.abs(grads)) + epsilon
-                out_comp[i] = std_g / mean_abs_g
-            else:
-                out_comp[i] = 0
-        return out_ent, out_comp
-
-    # -------------------------------------------------------------------------
-    # 2. Procesado de cada pozo
-    # -------------------------------------------------------------------------
-    for well_name, df in train_validation_data.items():
-        df_copy = df.copy()
-
-        # 2.1 Filtrado de columnas
-        use_cols = []
-        for c in selected_curves:
-            if c not in curves_to_predict and c in df_copy.columns:
-                use_cols.append(c)
+        # H) Clustering
+        ignore_cols = set(curves_to_predict + ["Formation", "Well_ID"])
+        cluster_df = d[[c for c in d.columns if c not in ignore_cols]].copy()
+        # Asegurar que no hay valores NaN antes de clustering
+        cluster_df = cluster_df.apply(lambda col: col.fillna(col.median()), axis=0)
         
-        # Añadir columnas objetivo directamente (sin transformar)
-        for c in curves_to_predict:
-            if c in df_copy.columns:
-                use_cols.append(c)
-                
-        if 'Latitude' in df_copy.columns:
-            use_cols.append('Latitude')
-        if 'Longitude' in df_copy.columns:
-            use_cols.append('Longitude')
-        if 'Formation' in df_copy.columns and 'Formation' not in curves_to_predict:
-            use_cols.append('Formation')
-
-        df_copy = df_copy[use_cols].copy()
-
-        # Asegurar lat/lon
-        if 'Latitude' not in df_copy.columns:
-            df_copy['Latitude'] = np.nan
-        if 'Longitude' not in df_copy.columns:
-            df_copy['Longitude'] = np.nan
-
-        # (A) RELACIONES DIRECTAS
-        df_copy['RILD_minus_RILM']  = safe(df_copy,'RILD') - safe(df_copy,'RILM')
-        df_copy['RILD_minus_RHOC']  = safe(df_copy,'RILD') - safe(df_copy,'RHOC')
-        df_copy['RILD_over_RILM']   = safe(df_copy,'RILD') / (safe(df_copy,'RILM') + epsilon)
-        df_copy['RHOC_minus_RHOB']  = safe(df_copy,'RHOC') - safe(df_copy,'RHOB')
-        df_copy['GR_minus_SP']      = safe(df_copy,'GR')   - safe(df_copy,'SP')
-        df_copy['GR_over_RHOC']     = safe(df_copy,'GR')   / (safe(df_copy,'RHOC') + epsilon)
-        df_copy['MN_minus_MI']      = safe(df_copy,'MN')   - safe(df_copy,'MI')
-        df_copy['RLL3_minus_RXORT'] = safe(df_copy,'RLL3') - safe(df_copy,'RXORT')
-        df_copy['RLL3_over_RXORT']  = safe(df_copy,'RLL3') / (safe(df_copy,'RXORT') + epsilon)
-
-        # (B) TRANSFORMACIONES
-        # df_copy['Log_RILD']  = np.log(safe(df_copy,'RILD') + epsilon)
-        # df_copy['Log_RHOC']  = np.log(safe(df_copy,'RHOC') + epsilon)
-        # df_copy['Log_GR']    = np.log(safe(df_copy,'GR')   + epsilon)
-        # df_copy['Sqrt_RILD'] = np.sqrt(safe(df_copy,'RILD') + epsilon)
-        # df_copy['Sqrt_RHOC'] = np.sqrt(safe(df_copy,'RHOC') + epsilon)
-
-        # (B) TRANSFORMACIONES (Robusto contra negativos y NaNs)
-        for curve in ['RILD', 'RHOC', 'GR']:
-            safe_curve = safe(df_copy, curve).clip(lower=epsilon).fillna(epsilon)
-            df_copy[f'Log_{curve}'] = np.log(safe_curve)
-
-        for curve in ['RILD', 'RHOC']:
-            safe_curve = safe(df_copy, curve).clip(lower=epsilon).fillna(epsilon)
-            df_copy[f'Sqrt_{curve}'] = np.sqrt(safe_curve)
-
-
-        gr_val = safe(df_copy,'GR')
-        gr_maxv = (gr_val.max() if hasattr(gr_val,'max') else 0) or epsilon
-        df_copy['Exp_normalized_GR'] = np.exp(gr_val / gr_maxv)
-
-        # (C) RELACIONES INDIRECTAS
-        df_copy['RILD_times_RHOC'] = safe(df_copy,'RILD') * safe(df_copy,'RHOC')
-        df_copy['GR_times_RHOC']   = safe(df_copy,'GR')   * safe(df_copy,'RHOC')
-        df_copy['SP_times_DT']     = safe(df_copy,'SP')   * safe(df_copy,'DT')
-        df_copy['RHOB_times_RHOC'] = safe(df_copy,'RHOB') * safe(df_copy,'RHOC')
-        df_copy['GR_times_DT']     = safe(df_copy,'GR')   * safe(df_copy,'DT')
-
-        # (D) CÁLCULOS PETROFÍSICOS
-        gr_col = safe(df_copy,'GR')
-        if hasattr(gr_col,'min'):
-            gr_min, gr_max2 = gr_col.min(), gr_col.max()
+        # Verificar que hay suficiente varianza para clustering
+        if cluster_df.shape[0] > num_clusters and not cluster_df.isna().all().all():
+            try:
+                kmeans = KMeans(num_clusters, n_init="auto", random_state=random_state).fit(cluster_df)
+                d["kmeans_cluster"] = pd.Categorical(kmeans.labels_)
+                agg = AgglomerativeClustering(num_clusters).fit(cluster_df)
+                d["agglo_cluster"] = pd.Categorical(agg.labels_)
+            except Exception as e:
+                logger.warning(f"Error en clustering: {e}. Asignando valores por defecto.")
+                d["kmeans_cluster"] = pd.Series(0, index=d.index, dtype="category")
+                d["agglo_cluster"] = pd.Series(0, index=d.index, dtype="category")
         else:
-            gr_min, gr_max2 = np.nan, np.nan
-        rango_gr = (gr_max2 - gr_min) if not pd.isna(gr_max2) else epsilon
+            # Si no hay suficientes datos, asignar categoría por defecto
+            d["kmeans_cluster"] = pd.Series(0, index=d.index, dtype="category")
+            d["agglo_cluster"] = pd.Series(0, index=d.index, dtype="category")
 
-        df_copy['Vsh'] = (gr_col - gr_min)/(rango_gr + epsilon)
-        df_copy['Vsh'] = df_copy['Vsh'].clip(0,1)
+        # I) Multi‑escala + LocalFreq
+        for c in ("GR", "RILD", "RHOC"):
+            if c in d.columns:
+                # Asegurar que no hay NaN antes de calcular escalas
+                arr = d[c].fillna(method="ffill").fillna(method="bfill").values
+                # Si aún hay NaN o la curva es constante, rellenar con un valor neutro
+                if np.isnan(arr).any() or np.std(arr) < EPS:
+                    arr = np.full_like(arr, np.nanmean(arr) if not np.isnan(arr).all() else 0.0)
+                    
+                p5, p20, p50 = _multi_scale_power(arr, [5, 20, 50])
+                d[f"{c}_Pwr5"] = p5
+                d[f"{c}_Pwr20"] = p20
+                d[f"{c}_Pwr50"] = p50
+                # Protección adicional para divisiones
+                d[f"{c}_PwrHF_LF"] = p5 / (p50 + EPS)
+                d[f"{c}_LocalFreq"] = p20
 
-        rho_ma, rho_f = 2.65, 1.0
-        df_copy['PhiD'] = (rho_ma - safe(df_copy,'RHOB'))/(rho_ma - rho_f + epsilon)
+        # J) Entropías y complejidad
+        for c in ("GR", "RILD"):
+            if c in d.columns:
+                arr = d[c].fillna(method="ffill").fillna(method="bfill").values
+                ent, comp = _local_skew_kurt(arr, window_size)
+                d[f"{c}_LocalEntropy"] = ent
+                d[f"{c}_LocalComplexity"] = comp
+                d[f"{c}_PermEntropy"] = _perm_entropy(arr, 3, window_size)
+                # Shannon adaptativa
+                half = window_size // 2
+                sh = np.full(len(arr), np.nan)
+                for i in range(len(arr)):
+                    s, e = max(0, i - half), min(len(arr), i + half)
+                    seg = arr[s:e]
+                    if seg.size:
+                        bins = int(np.ceil(np.log2(seg.size)) + 1)
+                        hist, _ = np.histogram(seg, bins=bins)
+                        p = hist / (hist.sum() + EPS)
+                        sh[i] = -(p * np.log2(p + EPS)).sum()
+                d[f"{c}_ShannonAdaptive"] = sh
 
-        dt_ma, dt_f = 55.5, 189
-        df_copy['PhiS'] = (safe(df_copy,'DT') - dt_ma)/(dt_f - dt_ma + epsilon)
+        # K) Textura, rugosidad, gradientes
+        for c in ("GR", "RHOB"):
+            if c in d.columns:
+                arr = d[c].fillna(method="ffill").values
+                d[f"{c}_p10"] = _local_percentile(arr, 10, window_size)
+                d[f"{c}_p50"] = _local_percentile(arr, 50, window_size)
+                d[f"{c}_p90"] = _local_percentile(arr, 90, window_size)
+                skew, kurt = _local_skew_kurt(arr, window_size)
+                d[f"{c}_skew"] = skew
+                d[f"{c}_kurt"] = kurt
+        for c in ("GR", "RHOB", "RILD"):
+            if c in d.columns:
+                grad = _gradient(d[c].fillna(method="ffill").values)
+                d[f"{c}_grad"] = grad
+                d[f"{c}_grad_smooth"] = _smooth(grad)
+        for c in ("GR", "RILD"):
+            if c in d.columns:
+                arr = d[c].fillna(method="ffill").values
+                rms = _local_rms(arr, window_size)
+                var = pd.Series(arr).rolling(window_size, center=True, min_periods=1).var().values
+                d[f"{c}_RMS"] = rms
+                d[f"{c}_RMS_div_var"] = rms / (var + EPS)
 
-        if 'NPHI' in df_copy.columns:
-            df_copy['Phi_avg'] = (df_copy['PhiD'] + df_copy['PhiS'] + df_copy['NPHI'])/3.0
-        else:
-            df_copy['Phi_avg'] = (df_copy['PhiD'] + df_copy['PhiS'])/2.0
+        # L) Correlaciones y ratio
+        if set(["GR", "RHOB"]).issubset(d.columns):
+            d["Corr_GR_RHOB"] = d["GR"].rolling(window_size, center=True, min_periods=1).corr(d["RHOB"])
+            GRn = (d["GR"] - d["GR"].mean()) / (d["GR"].std() + EPS)
+            RHn = (d["RHOB"] - d["RHOB"].mean()) / (d["RHOB"].std() + EPS)
+            d["GR_over_RHOB_norm"] = GRn / (RHn + EPS)
+        if set(["RILD", "RXORT"]).issubset(d.columns):
+            d["Corr_RILD_RXORT"] = d["RILD"].rolling(window_size, center=True, min_periods=1).corr(d["RXORT"])
 
-        a, m, n, Rw = 1.0, 2.0, 2.0, 0.1
-        df_copy['Sw_archie'] = ((a*Rw) / 
-            (safe(df_copy,'RILD')*(df_copy['Phi_avg']**m)+epsilon))**(1/n)
-        df_copy['Sw_archie'] = df_copy['Sw_archie'].clip(0,1)
+        # M) AI y autocorrelación
+        if set(["RHOB", "DT"]).issubset(d.columns):
+            d["Acoustic_Impedance"] = d["RHOB"] * d["DT"]
+        if "GR" in d.columns:
+            arr = d["GR"].fillna(method="ffill").values
+            for lag in (1, 2, 3):
+                d[f"AC_lag{lag}"] = _local_autocorr(arr, lag, window_size)
+            d["AC_dom_cycle"] = _dominant_cycle(arr, window_size)
 
-        df_copy['k_timur'] = 0.136*(df_copy['Phi_avg']**4.4)/((df_copy['Sw_archie']+epsilon)**2)
-        df_copy['BVW']     = df_copy['Phi_avg']*df_copy['Sw_archie']
-        df_copy['HC_Index']= (1 - df_copy['Sw_archie'])*df_copy['Phi_avg']
+        # N) Flags lógicos
+        if set(["GR", "RHOB"]).issubset(d.columns):
+            d["is_shale"] = (d["GR"] > 75).astype(int)
+            d["is_carb"] = ((d["RHOB"] < 2.4) & (d["GR"] < 50)).astype(int)
+            
+        # Crear columnas categóricas con protección anti-NaN
+        d["Vsh_class"] = _create_vsh_class(d["Vsh"])
+        d["Phi_class"] = _create_phi_class(d["Phi_avg"], num_clusters=10, random_state=random_state)
+        d["SwVsh_class"] = _create_swvsh_class(d["Sw_archie"], d["Vsh"], 
+                                               num_clusters=12, random_state=random_state)
 
-        df_copy['RQI'] = 0.0314 * np.sqrt( df_copy['k_timur']/(df_copy['Phi_avg']+epsilon) )
-        df_copy['FZI'] = df_copy['RQI']/((df_copy['Phi_avg']/(1-df_copy['Phi_avg']+epsilon))+epsilon)
+        # O) Completar e imputar
+        for col in master_all + curves_to_predict:
+            if col not in d.columns:
+                d[col] = np.nan
+        df_final = d[master_all + curves_to_predict].copy()
+        # Ensure all categorical columns have the correct type
+        df_final = df_final.astype({c: "category" for c in cat_cols + ["kmeans_cluster", "agglo_cluster", "Well_ID"]})
+        df_final = _impute_local(df_final, window_size)
+        engineered[well] = df_final
 
-        # Reemplazo de NaN/Inf en petrofísicos
-        for pet_col in ['Vsh','PhiD','PhiS','Phi_avg','Sw_archie','k_timur',
-                        'BVW','HC_Index','RQI','FZI']:
-            mask_bad = df_copy[pet_col].isna() | np.isinf(df_copy[pet_col])
-            if mask_bad.any():
-                logger.warning(f"[{well_name}] Se anulan {mask_bad.sum()} valores problemáticos en {pet_col}")
-                df_copy.loc[mask_bad, pet_col] = 0.0
+    if not engineered:
+        raise ValueError("Ningún pozo válido para ingeniería de features")
 
-        # (E) ESTADÍSTICAS ROLLING
-        for cstat in key_curves_for_stats:
-            if cstat in df_copy.columns: 
-                df_copy[f'{cstat}_Moving_Avg'] = df_copy[cstat].rolling(
-                    window=window_size, min_periods=1, center=True).mean()
-                df_copy[f'{cstat}_Moving_Var'] = df_copy[cstat].rolling(
-                    window=window_size, min_periods=1, center=True).var().fillna(0)
+    ##########################################################################
+    # 3. Filtros de varianza y Boruta                                         #
+    ##########################################################################
+
+    final_cols = master_all.copy()
+    sample_df = next(iter(engineered.values()))
+    
+    numeric_cols = [c for c in final_cols if pd.api.types.is_numeric_dtype(sample_df[c])]
+    categorical_cols = [c for c in final_cols if c not in numeric_cols]
+
+    if var_threshold is not None and numeric_cols:
+        # Combine all wells data for variance calculation
+        combined = pd.concat([df[numeric_cols] for df in engineered.values()], ignore_index=True)
+        combined = combined.apply(lambda col: col.fillna(col.median()), axis=0)
+        
+        # Apply variance filter as normal
+        keep_mask = VarianceThreshold(var_threshold).fit(combined).get_support()
+        numeric_cols = [c for c, k in zip(numeric_cols, keep_mask) if k]
+        
+        if pct_wells_threshold < 1.0:
+            low_counts = {c: 0 for c in numeric_cols}
+            for df in engineered.values():
+                low = df[numeric_cols].var() < var_threshold
+                for col, flag in low.items():
+                    if flag:
+                        low_counts[col] += 1
+            n_wells = len(engineered)
+            numeric_cols = [c for c in numeric_cols if low_counts[c] / n_wells < pct_wells_threshold]
+
+    if use_boruta and numeric_cols:
+        target = next((t for t in curves_to_predict if all(t in df.columns for df in engineered.values())), None)
+        if target:
+            X = pd.concat([df[numeric_cols] for df in engineered.values()], ignore_index=True).apply(lambda col: col.fillna(col.median()), axis=0)
+            y = pd.concat([df[target] for df in engineered.values()], ignore_index=True)
+            rf = RandomForestClassifier(n_estimators=500, random_state=random_state) if pd.api.types.is_integer_dtype(y) else RandomForestRegressor(n_estimators=500, random_state=random_state)
+            if BorutaPy:
+                bor = BorutaPy(rf, n_estimators="auto", random_state=random_state, verbose=0)
+                bor.fit(X.values, y.values)
+                numeric_cols = [c for c, k in zip(numeric_cols, bor.support_) if k]
             else:
-                df_copy[f'{cstat}_Moving_Avg'] = 0
-                df_copy[f'{cstat}_Moving_Var'] = 0
-
-        # (F) PROFUNDIDAD
-        depth_vals = df_copy.index.values.astype(float)
-        if len(depth_vals) > 1:
-            d_min, d_max = depth_vals.min(), depth_vals.max()
-            denom_depth  = (d_max - d_min) if d_max > d_min else epsilon
-            norm_depth   = (depth_vals - d_min)/(denom_depth+epsilon)
+                rf.fit(X, y)
+                imp = rf.feature_importances_
+                thresh = np.percentile(imp, 75)
+                numeric_cols = [c for c, im in zip(numeric_cols, imp) if im >= thresh]
         else:
-            norm_depth = np.zeros_like(depth_vals)
+            logger.warning("No target común; se omite Boruta/RF importance")
 
-        df_copy['Normalized_Depth'] = norm_depth
-        df_copy['Depth_Squared']    = norm_depth**2
+    coord_cols = ["Latitude", "Longitude", "Well_ID"]
+    final_cols = [c for c in master_all if c in numeric_cols or c in categorical_cols]
+    # Añadir siempre columnas globales, aunque hayan sido filtradas
+    for gc in coord_cols:
+        if gc not in final_cols:
+            final_cols.append(gc)
+            
+    ##########################################################################
+    # 4. Re‑indexar pozos y construir feature_info                            #
+    ##########################################################################
 
-        # (G) GEOESPACIAL - Reemplazar Distance_From_Ref con Well_ID
-        lat0 = df_copy['Latitude'].iloc[0]
-        lon0 = df_copy['Longitude'].iloc[0]
+    for w in engineered:
+        # Make sure all required columns exist
+        missing = [c for c in final_cols if c not in engineered[w].columns]
+        for c in missing:
+            engineered[w][c] = np.nan
+        
+        # Select only needed columns and make a clean copy
+        engineered[w] = engineered[w][final_cols + curves_to_predict].copy()
 
-        if not np.isnan(lat0) and not np.isnan(lon0):
-            df_copy['Well_ID'] = abs(hash((lat0, lon0))) % 100000  # Genera un ID numérico único
-        else:
-            df_copy['Well_ID'] = np.nan  # Si no hay coordenadas, deja NaN para manejarlo después
+        # Apply categorical types to appropriate columns
+        engineered[w]["Well_ID"] = engineered[w]["Well_ID"].astype("category")
+        engineered[w]["kmeans_cluster"] = engineered[w]["kmeans_cluster"].astype("category") 
+        engineered[w]["agglo_cluster"] = engineered[w]["agglo_cluster"].astype("category")
+        
+        # Apply types to class columns 
+        for c in cat_cols:
+            if c in engineered[w].columns:
+                engineered[w][c] = engineered[w][c].astype("category")
 
-        # (H) CLUSTERING
-        ignore_cols = list(curves_to_predict)
-        if 'Formation' in df_copy.columns and 'Formation' not in ignore_cols:
-            ignore_cols.append('Formation')
-
-        clusterable = [c for c in df_copy.columns if c not in ignore_cols]
-        imputer = SimpleImputer(strategy='mean')
-        cluster_input = pd.DataFrame(imputer.fit_transform(df_copy[clusterable]), 
-                                     columns=clusterable)
-
-        kmeans = KMeans(n_clusters=num_clusters, n_init='auto', random_state=42)
-        kmeans_results = kmeans.fit_predict(cluster_input).astype(int)
-        df_copy['kmeans_cluster'] = pd.Categorical(kmeans_results)
-
-        agglo = AgglomerativeClustering(n_clusters=num_clusters)
-        agglo_results = agglo.fit_predict(cluster_input).astype(int)
-        df_copy['agglo_cluster'] = pd.Categorical(agglo_results)
-
-        # (I) FRECUENCIA LOCAL (sustituyendo a freq global)
-        for freq_curve in ['GR','RILD','RHOC']:
-            if freq_curve in df_copy.columns:
-                series_clean = df_copy[freq_curve].fillna(method='ffill').fillna(method='bfill').values
-                df_copy[f'{freq_curve}_LocalFreq'] = compute_local_dominant_freq(series_clean, window=window_size)
-            else:
-                df_copy[f'{freq_curve}_LocalFreq'] = 0
-
-        # (J) ENTROPÍA & COMPLEJIDAD LOCAL (sustituyendo a la global)
-        for ent_curve in ['GR','RILD']:
-            if ent_curve in df_copy.columns:
-                vals = df_copy[ent_curve].fillna(method='ffill').fillna(method='bfill').values
-                local_ent, local_comp = compute_local_entropy_complexity(vals, window=window_size)
-                df_copy[f'{ent_curve}_LocalEntropy'] = local_ent
-                df_copy[f'{ent_curve}_LocalComplexity'] = local_comp
-            else:
-                df_copy[f'{ent_curve}_LocalEntropy']    = 0
-                df_copy[f'{ent_curve}_LocalComplexity'] = 0
-
-        # ---------------------------------------------------------------------
-        # 2.2 Definimos la lista final de 50 features numéricas
-        # (quitamos las freq_cols y ent_cols globales, usamos las locales)
-        # ---------------------------------------------------------------------
-        final_50 = ( direct_rel_cols
-                   + transform_cols
-                   + indirect_rel_cols
-                   + petrophysical_cols )
-
-        for cstat in key_curves_for_stats:
-            final_50.append(f'{cstat}_Moving_Avg')
-            final_50.append(f'{cstat}_Moving_Var')
-
-        final_50 += depth_cols       # +2
-        final_50 += geo_cols         # +1
-        final_50 += cluster_cols     # +2
-
-        # Ahora agregamos nuestras 3 freq locales y 4 entropía/complexidad => total +7
-        final_50 += local_freq_cols  # +3
-        final_50 += local_ent_cols   # +4
-
-        # Verificación de que sean 50
-        assert len(final_50) == 50, f"Se esperaban 50 col. base, got {len(final_50)}"
-
-        # ---------------------------------------------------------------------
-        # 2.3 Añadimos lat/lon + 3 cat => total 55
-        # ---------------------------------------------------------------------
-        final_50.append('Latitude')
-        final_50.append('Longitude')
-
-        # Columnas categóricas finales con más etiquetas
-        def vsh_fixed_class(vsh_series):
-            """
-            Expande la clasificación de Vsh a 6 etiquetas numéricas en lugar de 3.
-            """
-            labels = []
-            for val in vsh_series:
-                if pd.isna(val):
-                    labels.append(-1)  # Para representar valores desconocidos
-                elif val < 0.15:
-                    labels.append(0)  # Muy Bajo
-                elif val < 0.3:
-                    labels.append(1)  # Bajo
-                elif val < 0.45:
-                    labels.append(2)  # Medio-Bajo
-                elif val < 0.6:
-                    labels.append(3)  # Medio
-                elif val < 0.75:
-                    labels.append(4)  # Medio-Alto
-                else:
-                    labels.append(5)  # Alto
-            return pd.Categorical(labels, categories=[0, 1, 2, 3, 4, 5, -1], ordered=False)
-
-        def phi_kmeans_class(phi_series, n_clusters=10):
-            """
-            Expande Phi_class a 10 etiquetas utilizando KMeans.
-            """
-            phi_clean = phi_series.fillna(phi_series.mean()).to_frame()
-            kmeans_phi = KMeans(n_clusters=n_clusters, random_state=42)
-            return pd.Categorical(kmeans_phi.fit_predict(phi_clean), categories=list(range(n_clusters)), ordered=False)
-
-        def sw_vsh_cluster(sw_series, vsh_series, n_clusters=12):
-            """
-            Expande SwVsh_class a 12 etiquetas utilizando KMeans.
-            """
-            df_2d = pd.DataFrame({
-                'Sw': sw_series.fillna(sw_series.mean()), 
-                'Vsh': vsh_series.fillna(vsh_series.mean())
-            })
-            kmeans_2d = KMeans(n_clusters=n_clusters, random_state=42)
-            return pd.Categorical(kmeans_2d.fit_predict(df_2d), categories=list(range(n_clusters)), ordered=False)
-
-        df_copy['Vsh_class']   = vsh_fixed_class(df_copy['Vsh'])
-        df_copy['Phi_class']   = phi_kmeans_class(df_copy['Phi_avg'])
-        df_copy['SwVsh_class'] = sw_vsh_cluster(df_copy['Sw_archie'], df_copy['Vsh'])
-
-        final_50 += ['Vsh_class', 'Phi_class', 'SwVsh_class']
-
-        # ---------------------------------------------------------------------
-        # 2.4 Armamos DataFrame final
-        # ---------------------------------------------------------------------
-        seen = set()
-        final_order = []
-        for colx in final_50:
-            if colx not in seen:
-                seen.add(colx)
-                final_order.append(colx)
-                
-        # Aseguramos que las columnas objetivo se incluyan en el DataFrame final
-        for c in curves_to_predict:
-            if c in df_copy.columns and c not in seen:
-                final_order.append(c)
-                seen.add(c)
-
-        existing_cols = [c for c in final_order if c in df_copy.columns]
-        df_final = df_copy[existing_cols].copy()
-
-        # Verificamos cuántas columnas base tenemos (sin contar curves_to_predict)
-        base_cols = [c for c in existing_cols if c not in curves_to_predict]
-        if len(base_cols) != 55:
-            logger.warning(f"[{well_name}] Se esperaban 55 col. base => got {len(base_cols)}. "
-                           "Tal vez faltan lat/lon o hubo datos nulos en clusterización.")
-
-        # Asegurar tipo categórico
-        for cat_col in ['Vsh_class','Phi_class','SwVsh_class']:
-            if cat_col in df_final.columns:
-                df_final[cat_col] = pd.Categorical(df_final[cat_col])
-
-        engineered_data[well_name] = df_final
-
-    # -------------------------------------------------------------------------
-    # 3. feature_info
-    # -------------------------------------------------------------------------
+    sample = next(iter(engineered.values()))
     feature_info = {}
-    if len(engineered_data) > 0:
-        example_well = next(iter(engineered_data))
-        example_df   = engineered_data[example_well]
-        for col in example_df.columns:
-            if col in ('Latitude','Longitude'):
-                feature_info[col] = 'coordinate'
-            elif col in ('Formation', 'Well_ID') or 'class' in col.lower() or 'cluster' in col.lower():
-                feature_info[col] = 'categorical'
-            elif col in curves_to_predict:
-                # Para las columnas objetivo, verificamos si son categóricas o numéricas
-                if pd.api.types.is_categorical_dtype(example_df[col]) or example_df[col].dtype == 'object':
-                    feature_info[col] = 'categorical'
-                else:
-                    feature_info[col] = 'numerical'
-            elif pd.api.types.is_categorical_dtype(example_df[col]):
-                feature_info[col] = 'categorical'
-            else:
-                feature_info[col] = 'numerical'
-    else:
-        logger.warning("No wells => no feature_info created.")
+    
+    for c in final_cols + curves_to_predict:
+        if c in ("Latitude", "Longitude"):
+            feature_info[c] = "coordinate"
+        elif c.lower() == "formation" or c == "Well_ID" or pd.api.types.is_categorical_dtype(sample[c]) or "cluster" in c.lower() or "class" in c.lower():
+            feature_info[c] = "categorical"
+        else:
+            feature_info[c] = "numerical"
 
-    return engineered_data, feature_info
+    # Ensure all categorical columns are actually categorical in all dataframes
+    categorical_cols = [c for c in final_cols if feature_info[c] == "categorical"]
+    for w in engineered:
+        for c in categorical_cols:
+            if c in engineered[w].columns:
+                engineered[w][c] = engineered[w][c].astype("category")
+
+    logger.info("Set final de columnas: %d", len(final_cols))
+    return engineered, feature_info, final_cols

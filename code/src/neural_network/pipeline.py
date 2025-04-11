@@ -62,7 +62,7 @@ from src.neural_network.hyperparameters import *
 
 logger = logging.getLogger(__name__)
 
-def pipeline(data, selected_curves, curves_to_predict, unique_formations):
+def pipeline(data, selected_curves, curves_to_predict):
     ################################## Step 0: Create directories and Setup GPU ##################################
 
     logger.info("Step 0: Configuración del entorno de ejecución")
@@ -81,26 +81,9 @@ def pipeline(data, selected_curves, curves_to_predict, unique_formations):
     log_file = os.path.join(current_dir, 'files/neural_network.log')
     configure_logging(log_file)
 
-    # logger.info("Directorios de proyecto creados:")
-    # for directory in directories:
-    #     logger.info(f"  - {os.path.basename(directory)}: {directory}")
-
-    # # 2. Configure reproducibility and GPU settings
-    # # Nota: Las variables de entorno críticas ya fueron configuradas por initialize_gpu
-    # set_random_seed(RANDOM_SEED)
-    
-    # logger.info("Paso 1: Configuración y optimización de GPU")
-    # # Configurar memoria de GPU y verificar disponibilidad
-    # # Removed: check_gpu_availability call since it conflicts with tf_utils initialization
-    # configure_memory()
-    
-    # # Aplicar optimizaciones adicionales para Optuna (post-inicialización)
-    # optimize_for_optuna_trials()
-    
-    # # Limpiar memoria para asegurar un estado óptimo antes de comenzar
-    # clean_memory_for_trial()
-
-    # logger.info("Sistema listo para ejecución de trials de Optuna ✅")
+    logger.info("Directorios de proyecto creados:")
+    for directory in directories:
+        logger.info(f"  - {os.path.basename(directory)}: {directory}")
 
     ################################## Step 1: Data Loading and Preprocessing ##################################
 
@@ -133,7 +116,7 @@ def pipeline(data, selected_curves, curves_to_predict, unique_formations):
 
     logger.info("Step 2: Generating engineered features...")
 
-    engineered_data, feature_info = generate_features(train_validation_data, selected_curves, curves_to_predict, window_size=20, num_clusters=15)
+    engineered_data, feature_info, final_cols= generate_features(train_validation_data, selected_curves, curves_to_predict, window_size=20, num_clusters=15)
 
     logger.info(f"    Number of engineered features: {len(feature_info)}")
     logger.info("    Engineered Features:")
@@ -149,194 +132,235 @@ def pipeline(data, selected_curves, curves_to_predict, unique_formations):
 
     ################################## Step 3: Data Normalization ##################################
 
-    logger.info("Step 3: Normalizing and preparing data...")
+    # logger.info("Step 3: Normalizing and preparing data...")
 
-    # Llamamos a la nueva función de normalización pozo a pozo con tratamiento global
-    X, y, normalizer, scaler_info, unknown_index = prepare_and_normalize_data(
-        engineered_data,
-        feature_info,
-        curves_to_predict,
-        all_formations=unique_formations,
-        global_columns=global_columns
-    )
+    # # Llamamos a la nueva función de normalización pozo a pozo con tratamiento global
+    # X_scaled, y_scaled, normalizers, scaler_info, unknown_index,formation_encoder, global_scaler, global_types, y_descriptors, common_descriptors = prepare_and_normalize_data(
+    #     engineered_data,
+    #     feature_info,
+    #     curves_to_predict,
+    #     global_columns=global_columns
+    # )
 
-    logger.info(f"    Data normalized successfully - X shape: {X.shape}, y shape: {y.shape}")
+    # logger.info(f"    Data normalized successfully - X shape: {X_scaled.shape}, y shape: {y_scaled.shape}")
 
-    # Resumen acumulado por tipo de transformación
-    from collections import defaultdict
+    # # Resumen acumulado por tipo de transformación
+    # from collections import defaultdict
 
-    transform_summary = defaultdict(set)  # dict: tipo → set(features)
-    target_summary = defaultdict(set)
+    # transform_summary = defaultdict(set)  # dict: tipo → set(features)
+    # target_summary = defaultdict(set)
 
-    for well_name, info in scaler_info.items():
-        for col, values in info["X"].items():
-            if len(values) == 2:
-                transform_type, _ = values
-            elif len(values) == 3:
-                transform_type, _, _ = values  # Se ignora el tercer valor
+    # for well_name, info in scaler_info.items():
+    #     for col, values in info["X"].items():
+    #         if len(values) == 2:
+    #             transform_type, _ = values
+    #         elif len(values) == 3:
+    #             transform_type, _, _ = values  # Se ignora el tercer valor
 
-            transform_summary[transform_type].add(col)
+    #         transform_summary[transform_type].add(col)
 
-        for col, values in info["y"].items():
-            if len(values) == 2:
-                transform_type, _ = values
-            elif len(values) == 3:
-                transform_type, _, _ = values  # Se ignora el tercer valor
+    #     for col, values in info["y"].items():
+    #         if len(values) == 2:
+    #             transform_type, _ = values
+    #         elif len(values) == 3:
+    #             transform_type, _, _ = values  # Se ignora el tercer valor
 
-            target_summary[transform_type].add(col)
+    #         target_summary[transform_type].add(col)
 
-    # Mostrar resumen de transformaciones de X
-    logger.info("    Feature transformation summary (X):")
-    for transform_type in ['power_robust', 'boxcox_robust', 'robust', 'categorical', 'coord', 'none']:
-        features = sorted(transform_summary.get(transform_type, []))
-        if features:
-            label = {
-                'power_robust': 'PowerTransformer (Yeo-Johnson)',
-                'boxcox_robust': 'PowerTransformer (Box-Cox)',
-                'robust': 'RobustScaler',
-                'categorical': 'OrdinalEncoder',
-                'coord': 'Coordinate features',
-                'none': 'Unprocessed features'
-            }[transform_type]
-            logger.info(f"    {label} ({len(features)} features):")
-            for f in features:
-                logger.info(f"        - {f}")
+    # # Mostrar resumen de transformaciones de X
+    # logger.info("    Feature transformation summary (X):")
+    # for transform_type in ['power_robust', 'boxcox_robust', 'robust', 'categorical', 'coord', 'none']:
+    #     features = sorted(transform_summary.get(transform_type, []))
+    #     if features:
+    #         label = {
+    #             'power_robust': 'PowerTransformer (Yeo-Johnson)',
+    #             'boxcox_robust': 'PowerTransformer (Box-Cox)',
+    #             'robust': 'RobustScaler',
+    #             'categorical': 'OrdinalEncoder',
+    #             'coord': 'Coordinate features',
+    #             'none': 'Unprocessed features'
+    #         }[transform_type]
+    #         logger.info(f"    {label} ({len(features)} features):")
+    #         for f in features:
+    #             logger.info(f"        - {f}")
 
-    # Mostrar resumen de transformaciones de Y (targets)
-    if any(info["y"] for info in scaler_info.values()):
-        logger.info("    Target variables transformation (y):")
-        for transform_type, features in target_summary.items():
-            logger.info(f"    {transform_type} ({len(features)} targets):")
-            for f in sorted(features):
-                logger.info(f"        - {f}")
+    # # Mostrar resumen de transformaciones de Y (targets)
+    # if any(info["y"] for info in scaler_info.values()):
+    #     logger.info("    Target variables transformation (y):")
+    #     for transform_type, features in target_summary.items():
+    #         logger.info(f"    {transform_type} ({len(features)} targets):")
+    #         for f in sorted(features):
+    #             logger.info(f"        - {f}")
 
-    # ################################## Step 3.5:  Metric Configuration ##################################
+    # ################################## Step 4: Hyperparameter Optimization ##################################
 
-    # Determinar número de clases válidas para clasificación (excluyendo la clase unknown)
-    all_classes = y['Formation'].unique()
-    classification_output_shape = len([cls for cls in all_classes if cls != unknown_index])
+    # # Determinar número de clases válidas para clasificación (excluyendo la clase unknown)
+    # all_classes = y_scaled['Formation'].unique()
+    # classification_output_shape = len([cls for cls in all_classes if cls != unknown_index])
 
-    metrics = {
-        'regression_output': get_regression_metrics(),
-        'classification_output': get_classification_metrics(
-            num_classes=classification_output_shape,
-            unknown_index=unknown_index
-        )
-    }
+    # # Step 4: Initial Hyperparameter Optimization
+    # logger.info("Step 5: Starting initial hyperparameter optimization...")
+    # top_configs, study = optimize_hyperparameters(X_scaled, y_scaled, unknown_index, classification_output_shape)
+    # logger.info(f"    Initial hyperparameter optimization completed.")
 
-    ################################## Step 4: Hyperparameter Optimization ##################################
-
-    # Step 4: Initial Hyperparameter Optimization
-    logger.info("Step 5: Starting initial hyperparameter optimization...")
-    top_configs, study = optimize_hyperparameters(X, y, unknown_index, classification_output_shape)
-    logger.info(f"    Initial hyperparameter optimization completed.")
-
-    # Log detailed results of hyperparameter optimization
-    logger.info("\nBest Hyperparameter Configurations:")
-    logger.info("-" * 50)
+    # # Log detailed results of hyperparameter optimization
+    # logger.info("\nBest Hyperparameter Configurations:")
+    # logger.info("-" * 50)
     
-    for i, (trial, config) in enumerate(zip(sorted(study.trials, 
-        key=lambda t: t.value if t.value is not None else float('inf'))[:OPTIM_TOP_TRIALS], 
-        top_configs), 1):
+    # for i, (trial, config) in enumerate(zip(sorted(study.trials, 
+    #     key=lambda t: t.value if t.value is not None else float('inf'))[:OPTIM_TOP_TRIALS], 
+    #     top_configs), 1):
         
-        logger.info(f"\nConfiguration #{i} (Loss: {trial.value:.4f}):")
-        logger.info("    Network Architecture:")
+    #     # Check if trial.value is None before formatting
+    #     loss_value = "N/A" if trial.value is None else f"{trial.value:.4f}"
+    #     logger.info(f"\nConfiguration #{i} (Loss: {loss_value}):")
+    #     logger.info("    Network Architecture:")
         
-        # Get number of layers
-        num_layers = config.get('num_layers', 0)
-        logger.info(f"        - Number of Layers: {num_layers}")
+    #     # Get number of layers
+    #     num_layers = config.get('num_layers', 0)
+    #     logger.info(f"        - Number of Layers: {num_layers}")
         
-        # Get units per layer from individual parameters
-        units = []
-        for j in range(num_layers):
-            unit_key = f'units_layer_{j+1}'
-            if unit_key in config:
-                units.append(config[unit_key])
-        logger.info(f"        - Units per Layer: {units}")
+    #     # Get units per layer from individual parameters
+    #     units = []
+    #     for j in range(num_layers):
+    #         unit_key = f'units_layer_{j+1}'
+    #         if unit_key in config:
+    #             units.append(config[unit_key])
+    #     logger.info(f"        - Units per Layer: {units}")
         
-        # Log activations and other parameters
-        logger.info(f"        - Early Activation: {config.get('activation_early', 'N/A')}")
-        logger.info(f"        - Late Activation: {config.get('activation_late', 'N/A')}")
-        logger.info(f"        - Dropout Rate: {config.get('dropout_rate', 0):.3f}")
-        logger.info(f"        - L1 Regularization: {config.get('l1_reg', 0):.6f}")
+    #     # Log activations and other parameters
+    #     logger.info(f"        - Early Activation: {config.get('activation_early', 'N/A')}")
+    #     logger.info(f"        - Late Activation: {config.get('activation_late', 'N/A')}")
+    #     logger.info(f"        - Dropout Rate: {config.get('dropout_rate', 0):.3f}")
+    #     logger.info(f"        - L1 Regularization: {config.get('l1_reg', 0):.6f}")
         
-        logger.info("    Training Parameters:")
-        logger.info(f"        - Learning Rate: {config.get('learning_rate', 0):.6f}")
-        logger.info(f"        - Batch Size: {config.get('batch_size', 'N/A')}")
-        logger.info(f"        - Optimizer: {config.get('optimizer', 'N/A')}")
+    #     logger.info("    Training Parameters:")
+    #     logger.info(f"        - Learning Rate: {config.get('learning_rate', 0):.6f}")
+    #     logger.info(f"        - Batch Size: {config.get('batch_size', 'N/A')}")
+    #     logger.info(f"        - Optimizer: {config.get('optimizer', 'N/A')}")
         
-        logger.info("-" * 30)
+    #     logger.info("-" * 30)
 
-    # Export to SQLite using files in the files directory
-    current_dir = os.path.dirname(__file__)
-    journal_path = os.path.join(current_dir, 'files', 'optuna_journal.log')
-    sqlite_path = os.path.join(current_dir, 'files', 'optuna_study.db')
+    # # Export to SQLite using files in the files directory
+    # current_dir = os.path.dirname(__file__)
+    # journal_path = os.path.join(current_dir, 'files', 'optuna_journal.log')
+    # sqlite_path = os.path.join(current_dir, 'files', 'optuna_study.db')
     
-    export_journal_to_sqlite(journal_path, sqlite_path, "mlp_hyperparameter_optimization")
+    # export_journal_to_sqlite(journal_path, sqlite_path, "mlp_hyperparameter_optimization", 
+    #                          ignore_fail = True,
+    #                          ignore_pruned = True)
 
-    ################################## Step 5: Cross-Validation of Top Configs ##################################
-    logger.info("Step 5: Validating top configurations with K-Fold cross-validation...")
+    # ################################## Step 5: Cross-Validation of Top Configs ##################################
+    # logger.info("Step 5: Validating top configurations with K-Fold cross-validation...")
 
-    from src.neural_network.cross_validate_top_configs import run_cross_validation_step
-    from src.utils.print_config_metrics import print_config_metrics
+    # from src.neural_network.cross_validate_top_configs import run_cross_validation_step
+    # from src.utils.print_config_metrics import print_config_metrics
 
-    # Aquí agregamos nuestro wrapper con tqdm
-    import tqdm
+    # # Aquí agregamos nuestro wrapper con tqdm
+    # import tqdm
 
-    def run_cross_validation_step_with_progress(X, y, top_configs, unknown_index):
-        """
-        Igual a run_cross_validation_step pero con una barra de progreso
-        para el entrenamiento en cada fold.
-        """
-        # Obtenemos los resultados con la cross-validation
-        # y, dentro de la función cross_validate_top_configs_refactor, modificamos 
-        # para que muestre la barra de progreso en cada fold
-        # o bien lo hacemos en esta función.
+    # def run_cross_validation_step_with_progress(X, y, top_configs, unknown_index):
+    #     """
+    #     Igual a run_cross_validation_step pero con una barra de progreso
+    #     para el entrenamiento en cada fold.
+    #     """
+    #     # Obtenemos los resultados con la cross-validation
+    #     # y, dentro de la función cross_validate_top_configs_refactor, modificamos 
+    #     # para que muestre la barra de progreso en cada fold
+    #     # o bien lo hacemos en esta función.
         
-        # Ejemplo: supongamos que cross_validate_top_configs_refactor 
-        # recibe un callback o algo similar. 
-        # Si no, adaptamos la función para inyectar tqdm manualmente.
+    #     # Ejemplo: supongamos que cross_validate_top_configs_refactor 
+    #     # recibe un callback o algo similar. 
+    #     # Si no, adaptamos la función para inyectar tqdm manualmente.
 
-        # Reusamos la función existente:
-        best_config_result, cv_results = run_cross_validation_step(
-            X, y, top_configs, unknown_index
-        )
-        return best_config_result, cv_results
+    #     # Reusamos la función existente:
+    #     best_config, cv_results = run_cross_validation_step(
+    #         X, y, top_configs, unknown_index
+    #     )
+    #     return best_config, cv_results
 
-    # Llamada con wrapper
-    best_config_result, cv_results = run_cross_validation_step_with_progress(X, y, top_configs, unknown_index)
+    # # Llamada con wrapper
+    # best_config, cv_results = run_cross_validation_step_with_progress(X, y, top_configs, unknown_index)
 
-    # Imprimir la mejor configuración y sus métricas
-    logger.info("Cross-validation completed. Selecting best config based on composite score...")
-    logger.info("-" * 50)
+    # # Imprimir la mejor configuración y sus métricas
+    # logger.info("Cross-validation completed. Selecting best config based on composite score...")
+    # logger.info("-" * 50)
     
-    logger.info("\nBest Configuration after Cross-Validation:")
-    logger.info("    Network Architecture:")
+    # logger.info("\nBest Configuration after Cross-Validation:")
+    # logger.info("    Network Architecture:")
     
-    # Get number of layers and units per layer
-    config = best_config_result['config']
-    num_layers = config.get('num_layers', 0)
-    logger.info(f"        - Number of Layers: {num_layers}")
+    # # Get number of layers and units per layer
+    # config = best_config['config']
+    # num_layers = config.get('num_layers', 0)
+    # logger.info(f"        - Number of Layers: {num_layers}")
     
-    # Get units per layer
-    units_per_layer = config.get('units_per_layer', [])
-    logger.info(f"        - Units per Layer: {units_per_layer}")
+    # # Get units per layer
+    # units_per_layer = config.get('units_per_layer', [])
+    # logger.info(f"        - Units per Layer: {units_per_layer}")
     
-    # Log activations and other parameters
-    logger.info(f"        - Early Activation: {config.get('activation_early', 'N/A')}")
-    logger.info(f"        - Late Activation: {config.get('activation_late', 'N/A')}")
-    logger.info(f"        - Dropout Rate: {config.get('dropout_rate', 0):.3f}")
-    logger.info(f"        - L1 Regularization: {config.get('l1_reg', 0):.6f}")
+    # # Log activations and other parameters
+    # logger.info(f"        - Early Activation: {config.get('activation_early', 'N/A')}")
+    # logger.info(f"        - Late Activation: {config.get('activation_late', 'N/A')}")
+    # logger.info(f"        - Dropout Rate: {config.get('dropout_rate', 0):.3f}")
+    # logger.info(f"        - L1 Regularization: {config.get('l1_reg', 0):.6f}")
     
-    logger.info("    Training Parameters:")
-    logger.info(f"        - Learning Rate: {config.get('learning_rate', 0):.6f}")
-    logger.info(f"        - Batch Size: {config.get('batch_size', 'N/A')}")
-    logger.info(f"        - Optimizer: {config.get('optimizer', 'N/A')}")
-    
-    logger.info("-" * 50)
+    # logger.info("    Training Parameters:")
+    # logger.info(f"        - Learning Rate: {config.get('learning_rate', 0):.6f}")
+    # logger.info(f"        - Batch Size: {config.get('batch_size', 'N/A')}")
+    # logger.info(f"        - Optimizer: {config.get('optimizer', 'N/A')}")
 
-    print_config_metrics(best_config_result)
+    # print_config_metrics(best_config)
+        
+    # logger.info("-" * 50)
+
+
+
+    # ################################## Step 6: Final Training ##################################
+    # logger.info("Step 6: Final Training with best hyperparams")
+    # from src.neural_network.cross_validate_top_configs import reconstruct_full_hyperparams
+
+    # # Reconstruye el dict de hiperparámetros
+    # best_config = reconstruct_full_hyperparams(best_config['config'])    
+
+
+    # from src.neural_network.final_train import final_train
+
+    # models, normalizer, formation_encoder, histories = final_train(
+    # engineered_data,
+    # feature_info,
+    # curves_to_predict,
+    # global_columns,
+    # best_config,
+    # classification_output_shape,
+    # unknown_index,
+    # save_dir=os.path.join(current_dir, 'model'),
+    # n_splits=5,
+    # random_state=42,
+    # max_epochs=100,
+    # patience=10
+    # )
+    
+    # logger.info("Final training completed. Model and normalizer have been saved.")
+
+    # # ################################## Step 7: Evaluate ##################################
+    # logger.info("Step 7: Evaluating external test set")
+
+    # from src.neural_network.evaluate import predict_external_test
+
+    # external_predictions = predict_external_test(
+    # external_test_data,
+    # normalizer,
+    # models,
+    # curves_to_predict,
+    # formation_encoder,
+    # save_dir= os.path.join(current_dir, 'results')
+    # )
+
+    # logger.info("Predictions on external wells completed.")
+
+
+
 
     # Return all the important data structures needed for the next steps
-    return train_validation_data, engineered_data, X, y, normalizer, scaler_info, top_configs, study, best_config_result, cv_results
+    return train_validation_data, external_test_data, engineered_data, feature_info, #X_scaled, y_scaled, #normalizers, scaler_info, all_classes, #top_configs, study #best_config, cv_results
 

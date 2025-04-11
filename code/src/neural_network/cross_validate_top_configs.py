@@ -3,8 +3,7 @@ import pandas as pd
 import tensorflow as tf
 from sklearn.model_selection import KFold
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-from tqdm.notebook import tqdm  # <-- Import de tqdm para Jupyter Notebook
-
+from tqdm.notebook import tqdm
 
 from src.neural_network.model import build_model
 from src.neural_network.hyperparameters import CV_SPLITS
@@ -29,8 +28,9 @@ def cross_validate_top_configs_refactor(
     y,
     top_configs,
     unknown_index,
+    classification_output_shape,
     random_seed=42,
-    ):
+):
     """
     Ejecuta validación cruzada sobre las mejores configuraciones de hiperparámetros.
     """
@@ -47,9 +47,7 @@ def cross_validate_top_configs_refactor(
         fold_metrics = []
         config = reconstruct_full_hyperparams(config)
 
-        for fold, (train_idx, val_idx) in enumerate(tqdm(kf.split(X_np), desc="Folds", total=CV_SPLITS), start=1):
-            # print(f"  Fold {fold + 1}/{CV_SPLITS}")
-
+        for fold, (train_idx, val_idx) in enumerate(tqdm(kf.split(X_np), desc=f"Config {config_idx+1} - Folds", total=CV_SPLITS), start=1):
             X_train, X_val = X_np[train_idx], X_np[val_idx]
             y_train = {
                 'regression_output': y_reg_all[train_idx],
@@ -66,7 +64,7 @@ def cross_validate_top_configs_refactor(
                 config,
                 input_shape=X.shape[1:],
                 regression_output_shape=1,
-                classification_output_shape=len(np.unique(y_clf_all)),
+                classification_output_shape=classification_output_shape,
                 unknown_index=unknown_index
             )
 
@@ -86,8 +84,6 @@ def cross_validate_top_configs_refactor(
             )
 
             eval_result = model.evaluate(X_val, y_val, verbose=0)
-
-            # metric_names = model.metrics_names
             fold_metric_dict = dict(zip(model.metrics_names, eval_result))
             fold_metrics.append(fold_metric_dict)
 
@@ -96,7 +92,6 @@ def cross_validate_top_configs_refactor(
             values = [fm[metric] for fm in fold_metrics if metric in fm]
             aggregated[metric + "_mean"] = float(np.mean(values))
             aggregated[metric + "_std"] = float(np.std(values))
-
 
         results.append({
             'config': config,
@@ -117,9 +112,7 @@ def select_best_config(results, alpha=0.5, classification_metric='classification
     if not rmse_candidates:
         raise KeyError("No se encontró una métrica de RMSE válida para seleccionar la mejor configuración.")
 
-    rmse_metric = rmse_candidates[0]  # Elegir la primera coincidencia
-    # print(f"🔍 Usando '{rmse_metric}' como métrica de regresión para seleccionar la mejor configuración")
-
+    rmse_metric = rmse_candidates[0]
     rmse_vals = [res['metrics'][rmse_metric] for res in results]
     clf_vals = [res['metrics'][classification_metric] for res in results]
 
@@ -145,28 +138,20 @@ def select_best_config(results, alpha=0.5, classification_metric='classification
 ###############################################
 # Paso 5 del Pipeline
 ###############################################
-def run_cross_validation_step(X, y, top_configs, unknown_index):
-    # print("Step 5: Validating top configurations with K-Fold cross-validation...")
-
+def run_cross_validation_step(X, y, top_configs, unknown_index, classification_output_shape):
     cv_results = cross_validate_top_configs_refactor(
         X=X,
         y=y,
         top_configs=top_configs,
         unknown_index=unknown_index,
+        classification_output_shape=classification_output_shape,
         random_seed=42
     )
-
-    # print("Cross-validation completed. Selecting best config based on composite score...")
 
     best_config_result = select_best_config(
         results=cv_results,
         alpha=0.5,
         classification_metric='classification_output_masked_sparse_acc_mean'
     )
-
-    # print("Best config after cross-validation:")
-    # print(best_config_result['config'])
-    # print("Aggregated metrics:")
-    # print(best_config_result['metrics'])
 
     return best_config_result, cv_results

@@ -85,12 +85,10 @@ def build_model(hyperparams, input_shape, regression_output_shape, classificatio
         name='classification_output'
     )(x)
 
-
     # Modelo multi-output
     model = models.Model(inputs=inputs, outputs=[regression_output, classification_output])
 
     # Diccionario de métricas por salida:
-    # En cada lista, NO uses prefijos como 'regression_output_mae', basta con 'mae', 'rmse', etc.
     metrics_dict = {
         'regression_output': [
             tf.keras.metrics.MeanAbsoluteError(name='mae'),

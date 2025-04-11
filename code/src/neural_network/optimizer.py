@@ -1,5 +1,3 @@
-# optimize.py
-
 import optuna
 import gc
 import os
@@ -16,12 +14,11 @@ from  src.neural_network.hyperparameters import (
 
 def objective(trial, X, y, unknown_index, classification_output_shape):
     """Función objetivo para la optimización de hiperparámetros con Optuna."""
-    
+
     # Extraer hiperparámetros del trial
     hyperparams = get_hyperparams_from_trial(trial)
-    
+
     with tf.device('/GPU:0'):  
-        tf.keras.backend.clear_session()
 
         # Construcción del modelo
         model = build_model(
@@ -50,6 +47,7 @@ def objective(trial, X, y, unknown_index, classification_output_shape):
             epochs=50,
             batch_size=hyperparams['batch_size'],
             validation_split=0.2,
+            shuffle=True,
             callbacks=[early_stopping, pruning_callback],
             verbose=0
         )
@@ -57,12 +55,12 @@ def objective(trial, X, y, unknown_index, classification_output_shape):
     # Extraer la mejor pérdida de validación obtenida
     val_loss = min(history.history['val_loss'])
 
-    # Liberar memoria GPU después del trial
-    tf.keras.backend.clear_session()
-    del model
+    # Guardar el modelo para devolverlo
+    model_optuna = model
+
     gc.collect()
 
-    return val_loss
+    return val_loss, model_optuna
 
 def optimize_hyperparameters(X, y, unknown_index, classification_output_shape, n_trials=OPTIM_N_TRIALS, top_n=OPTIM_TOP_TRIALS):
     current_dir = os.path.dirname(__file__)
