@@ -56,15 +56,15 @@ La lista maestra de ~101 columnas (almacenada en `master_num`) incluye:
 Estas características resaltan contrastes o similitudes entre mediciones con conexiones geológicas o petrofísicas directas:
 
 - **RILD_minus_RILM**: Diferencia entre registros de resistividad profunda y media
-  - $\text{RILD\_minus\_RILM} = \text{RILD} - \text{RILM}$
+  - $RILD\_minus\_RILM = RILD - RILM$
 - **RILD_over_RILM**: Ratio de resistividad profunda a media
-  - $\text{RILD\_over\_RILM} = \frac{\text{RILD}}{\text{RILM}}$
+  - $RILD\_over\_RILM = \frac{RILD}{RILM}$
 - **RHOC_minus_RHOB**: Diferencia entre registros de densidad aparente corregida y original
-  - $\text{RHOC\_minus\_RHOB} = \text{RHOC} - \text{RHOB}$
+  - $RHOC\_minus\_RHOB = RHOC - RHOB$
 - **GR_minus_SP**: Diferencia entre registros de rayos gamma y potencial espontáneo
-  - $\text{GR\_minus\_SP} = \text{GR} - \text{SP}$
+  - $GR\_minus\_SP = GR - SP$
 - **MN_minus_MI**: Diferencia entre registros de porosidad neutrónica y microresistividad
-  - $\text{MN\_minus\_MI} = \text{MN} - \text{MI}$
+  - $MN\_minus\_MI = MN - MI$
 - Y otras relaciones directas similares
 
 ### 2. Transformaciones Matemáticas
@@ -72,11 +72,11 @@ Estas características resaltan contrastes o similitudes entre mediciones con co
 Estas transformaciones estabilizan la varianza, manejan distribuciones sesgadas y resaltan relaciones multiplicativas:
 
 - **Log_RILD**: Logaritmo natural del registro de resistividad profunda
-  - $\text{Log\_RILD} = \ln(\text{RILD})$
+  - $Log\_RILD = \ln(RILD)$
 - **Sqrt_RHOC**: Raíz cuadrada del registro de densidad aparente corregida
-  - $\text{Sqrt\_RHOC} = \sqrt{\text{RHOC}}$
+  - $Sqrt\_RHOC = \sqrt{RHOC}$
 - **Exp_normalized_GR**: Exponencial del registro de rayos gamma normalizado
-  - $\text{Exp\_normalized\_GR} = \exp\left(\frac{\text{GR}}{\text{GR}_{\max}}\right)$
+  - $Exp\_normalized\_GR = \exp\left(\frac{GR}{GR_{\max}}\right)$
 - Otras transformaciones matemáticas de curvas clave
 
 ### 3. Relaciones Indirectas
@@ -84,9 +84,9 @@ Estas transformaciones estabilizan la varianza, manejan distribuciones sesgadas 
 Estas características combinan mediciones de registros de pozos que pueden no estar directamente relacionadas pero proporcionan información valiosa cuando se analizan juntas:
 
 - **RILD_times_RHOC**: Producto de registros de resistividad profunda y densidad aparente corregida
-  - $\text{RILD\_times\_RHOC} = \text{RILD} \times \text{RHOC}$
+  - $RILD\_times\_RHOC = RILD \times RHOC$
 - **GR_times_DT**: Producto de registros de rayos gamma y tiempo de tránsito sónico
-  - $\text{GR\_times\_DT} = \text{GR} \times \text{DT}$
+  - $GR\_times\_DT = GR \times DT$
 - Otras combinaciones indirectas de curvas
 
 ### 4. Cálculos Petrofísicos
@@ -94,7 +94,7 @@ Estas características combinan mediciones de registros de pozos que pueden no e
 Estas características se derivan utilizando fórmulas establecidas para estimar propiedades de formación:
 
 - **Vsh**: Volumen de arcilla calculado a partir del registro de rayos gamma
-  - $V_{sh} = \frac{\text{GR} - \text{GR}_{\min}}{\text{GR}_{\max} - \text{GR}_{\min}}$
+  - $V_{sh} = \frac{GR - GR_{\min}}{GR_{\max} - GR_{\min}}$
 - **PhiD**: Porosidad por densidad calculada a partir del registro de densidad aparente
   - $\Phi_D = \frac{\rho_{ma} - \rho_b}{\rho_{ma} - \rho_f}$
 - **PhiS**: Porosidad sónica calculada a partir del registro de tiempo de tránsito sónico
@@ -107,7 +107,7 @@ Estas características se derivan utilizando fórmulas establecidas para estimar
 - **k_timur**: Permeabilidad estimada usando la ecuación de Timur
   - $k = 0.136 \cdot \frac{\Phi_{avg}^{4.4}}{S_w^2}$
 - **BVW**: Volumen de agua bruto
-  - $\text{BVW} = \Phi_{avg} \cdot S_w$
+  - $BVW = \Phi_{avg} \cdot S_w$
 - Atributos petrofísicos adicionales
 
 ### 5. Características de Clasificación
@@ -115,7 +115,7 @@ Estas características se derivan utilizando fórmulas establecidas para estimar
 Estas características categorizan propiedades geológicas basadas en cálculos petrofísicos:
 
 - **Vsh_class**: Clasificación basada en volumen de arcilla
-  - $\text{Vsh\_class} = \begin{cases} 
+  - $Vsh\_class = \begin{cases} 
       0 & \text{si } V_{sh} < 0.15 \text{ (limpio)} \\
       1 & \text{si } 0.15 \leq V_{sh} < 0.35 \text{ (arcilloso)} \\
       2 & \text{si } V_{sh} \geq 0.35 \text{ (arcilla)} \\
@@ -137,10 +137,10 @@ Estas características categorizan propiedades geológicas basadas en cálculos 
 Características estadísticas calculadas sobre una ventana definida para capturar tendencias y variabilidad:
 
 - **{Curva}_Moving_Avg**: Media móvil sobre una ventana (p.ej., 5 muestras)
-  - $\text{Curva\_Moving\_Avg}_i = \frac{1}{w} \sum_{j=i-\lfloor w/2 \rfloor}^{i+\lfloor w/2 \rfloor} \text{Curva}_j$
+  - $Curva\_Moving\_Avg_i = \frac{1}{w} \sum_{j=i-\lfloor w/2 \rfloor}^{i+\lfloor w/2 \rfloor} Curva_j$
   
 - **{Curva}_Moving_Var**: Varianza móvil sobre una ventana
-  - $\text{Curva\_Moving\_Var}_i = \frac{1}{w} \sum_{j=i-\lfloor w/2 \rfloor}^{i+\lfloor w/2 \rfloor} (\text{Curva}_j - \text{Curva\_Moving\_Avg}_i)^2$
+  - $Curva\_Moving\_Var_i = \frac{1}{w} \sum_{j=i-\lfloor w/2 \rfloor}^{i+\lfloor w/2 \rfloor} (Curva_j - Curva\_Moving\_Avg_i)^2$
   
 - Aplicado a curvas clave como GR, RILD, RHOC, RHOB
 
@@ -149,7 +149,7 @@ Características estadísticas calculadas sobre una ventana definida para captur
 Estas características capturan la complejidad de la señal y el contenido de información:
 
 - **{Curva}_LocalFreq**: Análisis de frecuencia local
-  - Basado en tasa de cruce por cero: $\text{ZCR} = \frac{1}{N-1} \sum_{i=1}^{N-1} \mathbb{1}_{\{\text{sgn}(x_i) \neq \text{sgn}(x_{i+1})\}}$
+  - Basado en tasa de cruce por cero: $ZCR = \frac{1}{N-1} \sum_{i=1}^{N-1} \mathbb{1}_{\{\text{sgn}(x_i) \neq \text{sgn}(x_{i+1})\}}$
   
 - **{Curva}_LocalEntropy**: Entropía de Shannon en una ventana local
   - $H(X) = -\sum_{i} p(x_i) \log p(x_i)$
@@ -167,9 +167,9 @@ Estas características capturan la complejidad de la señal y el contenido de in
 Características que describen las propiedades estadísticas de la "textura" de la curva:
 
 - **{Curva}_p10**, **{Curva}_p50**, **{Curva}_p90**: Percentiles locales
-  - $\text{Curva\_p10}_i = \text{Percentil}_{10}(\{\text{Curva}_j | i-\lfloor w/2 \rfloor \leq j \leq i+\lfloor w/2 \rfloor\})$
-  - $\text{Curva\_p50}_i = \text{Percentil}_{50}(\{\text{Curva}_j | i-\lfloor w/2 \rfloor \leq j \leq i+\lfloor w/2 \rfloor\})$
-  - $\text{Curva\_p90}_i = \text{Percentil}_{90}(\{\text{Curva}_j | i-\lfloor w/2 \rfloor \leq j \leq i+\lfloor w/2 \rfloor\})$
+  - $Curva\_p10_i = \text{Percentil}_{10}(\{Curva_j | i-\lfloor w/2 \rfloor \leq j \leq i+\lfloor w/2 \rfloor\})$
+  - $Curva\_p50_i = \text{Percentil}_{50}(\{Curva_j | i-\lfloor w/2 \rfloor \leq j \leq i+\lfloor w/2 \rfloor\})$
+  - $Curva\_p90_i = \text{Percentil}_{90}(\{Curva_j | i-\lfloor w/2 \rfloor \leq j \leq i+\lfloor w/2 \rfloor\})$
   
 - **{Curva}_skew**: Asimetría local
   - $\text{skew} = \frac{E[(X-\mu)^3]}{\sigma^3}$
@@ -182,30 +182,30 @@ Características que describen las propiedades estadísticas de la "textura" de 
 Características que cuantifican la rugosidad o suavidad de las curvas:
 
 - **{Curva}_RMS**: Raíz cuadrada media en una ventana local
-  - $\text{RMS} = \sqrt{\frac{1}{w} \sum_{j=i-\lfloor w/2 \rfloor}^{i+\lfloor w/2 \rfloor} \text{Curva}_j^2}$
+  - $RMS = \sqrt{\frac{1}{w} \sum_{j=i-\lfloor w/2 \rfloor}^{i+\lfloor w/2 \rfloor} Curva_j^2}$
   
 - **{Curva}_RMS_div_var**: RMS dividida por varianza
-  - $\text{RMS\_div\_var} = \frac{\text{RMS}}{\text{Curva\_Moving\_Var}}$
+  - $RMS\_div\_var = \frac{RMS}{Curva\_Moving\_Var}$
 
 ### 10. Características de Gradiente
 
 Características que capturan la tasa de cambio en las mediciones:
 
 - **{Curva}_grad**: Gradiente de la curva
-  - $\text{Curva\_grad}_i = \text{Curva}_{i+1} - \text{Curva}_i$
+  - $Curva\_grad_i = Curva_{i+1} - Curva_i$
   
 - **{Curva}_grad_smooth**: Gradiente suavizado
-  - Aplicar suavizado al gradiente, p.ej., $\text{Curva\_grad\_smooth} = \text{FiltroGaussiano}(\text{Curva\_grad})$
+  - Aplicar suavizado al gradiente, p.ej., $Curva\_grad\_smooth = \text{FiltroGaussiano}(Curva\_grad)$
 
 ### 11. Características de Correlación
 
 Características que miden correlaciones entre diferentes registros:
 
 - **Corr_GR_RHOB**: Correlación entre registros de rayos gamma y densidad aparente
-  - $\text{Corr\_GR\_RHOB} = \frac{\text{Cov}(\text{GR}, \text{RHOB})}{\sigma_{\text{GR}} \cdot \sigma_{\text{RHOB}}}$
+  - $Corr\_GR\_RHOB = \frac{\text{Cov}(GR, RHOB)}{\sigma_{GR} \cdot \sigma_{RHOB}}$
   
 - **Corr_RILD_RXORT**: Correlación entre registros de resistividad profunda y resistividad del receptor
-  - $\text{Corr\_RILD\_RXORT} = \frac{\text{Cov}(\text{RILD}, \text{RXORT})}{\sigma_{\text{RILD}} \cdot \sigma_{\text{RXORT}}}$
+  - $Corr\_RILD\_RXORT = \frac{\text{Cov}(RILD, RXORT)}{\sigma_{RILD} \cdot \sigma_{RXORT}}$
 
 ### 12. Características de Agrupamiento
 
@@ -233,7 +233,7 @@ Características relacionadas con la ubicación espacial e identidad del pozo:
 Indicadores binarios de condiciones geológicas específicas:
 
 - **is_shale**: Indicador de presencia de arcilla
-  - $\text{is\_shale} = \begin{cases} 
+  - $is\_shale = \begin{cases} 
       1 & \text{si } V_{sh} \geq 0.35 \\
       0 & \text{en caso contrario}
     \end{cases}$
@@ -361,7 +361,7 @@ La pipeline previene valores NaN a través de:
 
 - **Imputación Local** (`_impute_local`)
   - Después de generar todas las columnas, cada curva numérica se somete a relleno de NaN usando la mediana de una ventana móvil centrada
-  - $\text{valor\_imputado}_i = \text{mediana}(\{x_j | i-w \leq j \leq i+w \text{ y } x_j \text{ no es NaN}\})$
+  - $valor\_imputado_i = \text{mediana}(\{x_j | i-w \leq j \leq i+w \text{ y } x_j \text{ no es NaN}\})$
   - Si toda la ventana está vacía, se utiliza la mediana global del pozo
 
 - **Detección de Curvas Constantes**

@@ -56,15 +56,15 @@ The master list of ~101 columns (stored in `master_num`) includes:
 These features highlight contrasts or similarities between measurements with direct geological or petrophysical connections:
 
 - **RILD_minus_RILM**: Difference between deep and medium resistivity logs
-  - $\text{RILD\_minus\_RILM} = \text{RILD} - \text{RILM}$
+  - $RILD\_minus\_RILM = RILD - RILM$
 - **RILD_over_RILM**: Ratio of deep to medium resistivity logs
-  - $\text{RILD\_over\_RILM} = \frac{\text{RILD}}{\text{RILM}}$
+  - $RILD\_over\_RILM = \frac{RILD}{RILM}$
 - **RHOC_minus_RHOB**: Difference between corrected and original bulk density logs
-  - $\text{RHOC\_minus\_RHOB} = \text{RHOC} - \text{RHOB}$
+  - $RHOC\_minus\_RHOB = RHOC - RHOB$
 - **GR_minus_SP**: Difference between gamma ray and spontaneous potential logs
-  - $\text{GR\_minus\_SP} = \text{GR} - \text{SP}$
+  - $GR\_minus\_SP = GR - SP$
 - **MN_minus_MI**: Difference between neutron porosity and microresistivity logs
-  - $\text{MN\_minus\_MI} = \text{MN} - \text{MI}$
+  - $MN\_minus\_MI = MN - MI$
 - And other similar direct relationships
 
 ### 2. Mathematical Transformations
@@ -72,11 +72,11 @@ These features highlight contrasts or similarities between measurements with dir
 These transformations stabilize variance, handle skewed distributions, and highlight multiplicative relationships:
 
 - **Log_RILD**: Natural logarithm of deep resistivity log
-  - $\text{Log\_RILD} = \ln(\text{RILD})$
+  - $Log\_RILD = \ln(RILD)$
 - **Sqrt_RHOC**: Square root of corrected bulk density log
-  - $\text{Sqrt\_RHOC} = \sqrt{\text{RHOC}}$
+  - $Sqrt\_RHOC = \sqrt{RHOC}$
 - **Exp_normalized_GR**: Exponential of normalized gamma ray log
-  - $\text{Exp\_normalized\_GR} = \exp\left(\frac{\text{GR}}{\text{GR}_{\max}}\right)$
+  - $Exp\_normalized\_GR = \exp\left(\frac{GR}{GR_{\max}}\right)$
 - Other mathematical transformations of key curves
 
 ### 3. Indirect Relationships
@@ -84,9 +84,9 @@ These transformations stabilize variance, handle skewed distributions, and highl
 These features combine well log measurements that may not be directly related but provide valuable insights when analyzed together:
 
 - **RILD_times_RHOC**: Product of deep resistivity and corrected bulk density logs
-  - $\text{RILD\_times\_RHOC} = \text{RILD} \times \text{RHOC}$
+  - $RILD\_times\_RHOC = RILD \times RHOC$
 - **GR_times_DT**: Product of gamma ray and sonic travel time logs
-  - $\text{GR\_times\_DT} = \text{GR} \times \text{DT}$
+  - $GR\_times\_DT = GR \times DT$
 - Other indirect combinations of curves
 
 ### 4. Petrophysical Calculations
@@ -94,7 +94,7 @@ These features combine well log measurements that may not be directly related bu
 These features are derived using established formulas to estimate formation properties:
 
 - **Vsh**: Shale volume calculated from gamma ray log
-  - $V_{sh} = \frac{\text{GR} - \text{GR}_{\min}}{\text{GR}_{\max} - \text{GR}_{\min}}$
+  - $V_{sh} = \frac{GR - GR_{\min}}{GR_{\max} - GR_{\min}}$
 - **PhiD**: Density porosity calculated from bulk density log
   - $\Phi_D = \frac{\rho_{ma} - \rho_b}{\rho_{ma} - \rho_f}$
 - **PhiS**: Sonic porosity calculated from sonic travel time log
@@ -107,7 +107,7 @@ These features are derived using established formulas to estimate formation prop
 - **k_timur**: Permeability estimated using Timur's equation
   - $k = 0.136 \cdot \frac{\Phi_{avg}^{4.4}}{S_w^2}$
 - **BVW**: Bulk volume water
-  - $\text{BVW} = \Phi_{avg} \cdot S_w$
+  - $BVW = \Phi_{avg} \cdot S_w$
 - Additional petrophysical attributes
 
 ### 5. Classification Features
@@ -115,7 +115,7 @@ These features are derived using established formulas to estimate formation prop
 These features categorize geological properties based on petrophysical calculations:
 
 - **Vsh_class**: Classification based on shale volume
-  - $\text{Vsh\_class} = \begin{cases} 
+  - $Vsh\_class = \begin{cases} 
       0 & \text{if } V_{sh} < 0.15 \text{ (clean)} \\
       1 & \text{if } 0.15 \leq V_{sh} < 0.35 \text{ (shaly)} \\
       2 & \text{if } V_{sh} \geq 0.35 \text{ (shale)} \\
@@ -137,10 +137,10 @@ These features categorize geological properties based on petrophysical calculati
 Statistical features computed over a defined window to capture trends and variability:
 
 - **{Curve}_Moving_Avg**: Moving average over a window (e.g., 5 samples)
-  - $\text{Curve\_Moving\_Avg}_i = \frac{1}{w} \sum_{j=i-\lfloor w/2 \rfloor}^{i+\lfloor w/2 \rfloor} \text{Curve}_j$
+  - $Curve\_Moving\_Avg_i = \frac{1}{w} \sum_{j=i-\lfloor w/2 \rfloor}^{i+\lfloor w/2 \rfloor} Curve_j$
   
 - **{Curve}_Moving_Var**: Moving variance over a window
-  - $\text{Curve\_Moving\_Var}_i = \frac{1}{w} \sum_{j=i-\lfloor w/2 \rfloor}^{i+\lfloor w/2 \rfloor} (\text{Curve}_j - \text{Curve\_Moving\_Avg}_i)^2$
+  - $Curve\_Moving\_Var_i = \frac{1}{w} \sum_{j=i-\lfloor w/2 \rfloor}^{i+\lfloor w/2 \rfloor} (Curve_j - Curve\_Moving\_Avg_i)^2$
   
 - Applied to key curves like GR, RILD, RHOC, RHOB
 
@@ -149,7 +149,7 @@ Statistical features computed over a defined window to capture trends and variab
 These features capture signal complexity and information content:
 
 - **{Curve}_LocalFreq**: Local frequency analysis
-  - Based on zero-crossing rate: $\text{ZCR} = \frac{1}{N-1} \sum_{i=1}^{N-1} \mathbb{1}_{\{\text{sgn}(x_i) \neq \text{sgn}(x_{i+1})\}}$
+  - Based on zero-crossing rate: $ZCR = \frac{1}{N-1} \sum_{i=1}^{N-1} \mathbb{1}_{\{\text{sgn}(x_i) \neq \text{sgn}(x_{i+1})\}}$
   
 - **{Curve}_LocalEntropy**: Shannon entropy in a local window
   - $H(X) = -\sum_{i} p(x_i) \log p(x_i)$
@@ -167,9 +167,9 @@ These features capture signal complexity and information content:
 Features that describe the statistical properties of the curve's "texture":
 
 - **{Curve}_p10**, **{Curve}_p50**, **{Curve}_p90**: Local percentiles
-  - $\text{Curve\_p10}_i = \text{Percentile}_{10}(\{\text{Curve}_j | i-\lfloor w/2 \rfloor \leq j \leq i+\lfloor w/2 \rfloor\})$
-  - $\text{Curve\_p50}_i = \text{Percentile}_{50}(\{\text{Curve}_j | i-\lfloor w/2 \rfloor \leq j \leq i+\lfloor w/2 \rfloor\})$
-  - $\text{Curve\_p90}_i = \text{Percentile}_{90}(\{\text{Curve}_j | i-\lfloor w/2 \rfloor \leq j \leq i+\lfloor w/2 \rfloor\})$
+  - $Curve\_p10_i = \text{Percentile}_{10}(\{Curve_j | i-\lfloor w/2 \rfloor \leq j \leq i+\lfloor w/2 \rfloor\})$
+  - $Curve\_p50_i = \text{Percentile}_{50}(\{Curve_j | i-\lfloor w/2 \rfloor \leq j \leq i+\lfloor w/2 \rfloor\})$
+  - $Curve\_p90_i = \text{Percentile}_{90}(\{Curve_j | i-\lfloor w/2 \rfloor \leq j \leq i+\lfloor w/2 \rfloor\})$
   
 - **{Curve}_skew**: Local skewness
   - $\text{skew} = \frac{E[(X-\mu)^3]}{\sigma^3}$
@@ -182,30 +182,30 @@ Features that describe the statistical properties of the curve's "texture":
 Features that quantify the roughness or smoothness of curves:
 
 - **{Curve}_RMS**: Root mean square in a local window
-  - $\text{RMS} = \sqrt{\frac{1}{w} \sum_{j=i-\lfloor w/2 \rfloor}^{i+\lfloor w/2 \rfloor} \text{Curve}_j^2}$
+  - $RMS = \sqrt{\frac{1}{w} \sum_{j=i-\lfloor w/2 \rfloor}^{i+\lfloor w/2 \rfloor} Curve_j^2}$
   
 - **{Curve}_RMS_div_var**: RMS divided by variance
-  - $\text{RMS\_div\_var} = \frac{\text{RMS}}{\text{Curve\_Moving\_Var}}$
+  - $RMS\_div\_var = \frac{RMS}{Curve\_Moving\_Var}$
 
 ### 10. Gradient Features
 
 Features that capture the rate of change in measurements:
 
 - **{Curve}_grad**: Gradient of the curve
-  - $\text{Curve\_grad}_i = \text{Curve}_{i+1} - \text{Curve}_i$
+  - $Curve\_grad_i = Curve_{i+1} - Curve_i$
   
 - **{Curve}_grad_smooth**: Smoothed gradient
-  - Apply smoothing to the gradient, e.g., $\text{Curve\_grad\_smooth} = \text{GaussianFilter}(\text{Curve\_grad})$
+  - Apply smoothing to the gradient, e.g., $Curve\_grad\_smooth = \text{GaussianFilter}(Curve\_grad)$
 
 ### 11. Correlation Features
 
 Features that measure correlations between different logs:
 
 - **Corr_GR_RHOB**: Correlation between gamma ray and bulk density logs
-  - $\text{Corr\_GR\_RHOB} = \frac{\text{Cov}(\text{GR}, \text{RHOB})}{\sigma_{\text{GR}} \cdot \sigma_{\text{RHOB}}}$
+  - $Corr\_GR\_RHOB = \frac{\text{Cov}(GR, RHOB)}{\sigma_{GR} \cdot \sigma_{RHOB}}$
   
 - **Corr_RILD_RXORT**: Correlation between deep resistivity and receiver resistivity logs
-  - $\text{Corr\_RILD\_RXORT} = \frac{\text{Cov}(\text{RILD}, \text{RXORT})}{\sigma_{\text{RILD}} \cdot \sigma_{\text{RXORT}}}$
+  - $Corr\_RILD\_RXORT = \frac{\text{Cov}(RILD, RXORT)}{\sigma_{RILD} \cdot \sigma_{RXORT}}$
 
 ### 12. Clustering Features
 
@@ -233,7 +233,7 @@ Features related to the spatial location and well identity:
 Binary indicators of specific geological conditions:
 
 - **is_shale**: Flag indicating shale presence
-  - $\text{is\_shale} = \begin{cases} 
+  - $is\_shale = \begin{cases} 
       1 & \text{if } V_{sh} \geq 0.35 \\
       0 & \text{otherwise}
     \end{cases}$
@@ -285,12 +285,12 @@ Our empirical testing has shown that this two-stage approach typically reduces t
 - Each numerical feature from all wells is concatenated into a global DataFrame
 - NaN values are filled with the column median
 - `VarianceThreshold(var_threshold)` removes columns with variance < `var_threshold`
-  - $\text{Variance}(X) = \frac{1}{n} \sum_{i=1}^{n} (x_i - \mu)^2 < \text{var\_threshold}$
+  - $Variance(X) = \frac{1}{n} \sum_{i=1}^{n} (x_i - \mu)^2 < var\_threshold$
 
 ### 2. Per-Well Variance Filter
 
 - If a column is almost constant (var < `var_threshold`) in ≥ `pct_wells_threshold` of the wells, it is discarded across the entire dataset
-  - $\frac{\text{Count}(\text{wells with var}(X) < \text{var\_threshold})}{\text{Total wells}} \geq \text{pct\_wells\_threshold}$
+  - $\frac{Count(wells\ with\ var(X) < var\_threshold)}{Total\ wells} \geq pct\_wells\_threshold$
 
 ### 3. Boruta / RandomForest Feature Selection
 
@@ -361,7 +361,7 @@ The pipeline prevents NaN values through:
 
 - **Local Imputation** (`_impute_local`)
   - After generating all columns, each numerical curve undergoes NaN filling using the median of a centered rolling window
-  - $\text{imputed\_value}_i = \text{median}(\{x_j | i-w \leq j \leq i+w \text{ and } x_j \text{ is not NaN}\})$
+  - $imputed\_value_i = \text{median}(\{x_j | i-w \leq j \leq i+w \text{ and } x_j \text{ is not NaN}\})$
   - If the entire window is empty, the global median of the well is used
 
 - **Detection of Constant Curves**
@@ -370,7 +370,7 @@ The pipeline prevents NaN values through:
 ### Avoiding Unwanted 0/∞
 
 - Safe denominators are used: $\max((GR_{max} - GR_{min}), 10^{-12})$
-- $\text{clip}(X, \text{lower}=\epsilon)$ is applied before log or root operations
+- $clip(X, lower=\epsilon)$ se aplica antes de operaciones de logaritmo o raíz
 
 ### Final Filtering
 
