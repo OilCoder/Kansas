@@ -34,14 +34,52 @@ These factors necessitate a thoughtful approach to normalization. We need a stra
 ## Normalization Strategy
 Our normalization strategy is designed to balance the need for effective data preprocessing with the practical considerations of petroleum operations. We integrate our decisions into a cohesive approach as follows:
 
-### Global Normalization within Cross-Validation Folds
-We normalize the data globally within each cross-validation fold, computing normalization parameters (like mean and standard deviation) using all the training data in that fold. This approach:
+### Column-Based Normalization Strategy
+Each column in the dataset is globally evaluated to determine the most appropriate normalization technique. This technique is then applied locally on a well-by-well basis, except in cases where low global variance is detected or when a signal acts as a well identifier.
 
-- **Enhances Generalization**: By learning from the combined patterns across all wells, the model becomes better equipped to generalize to new wells.
+This approach ensures that each curve is treated consistently across all wells, respecting operational differences without compromising model consistency. By analyzing the characteristics of each feature globally but applying transformations locally, we maintain the integrity of well-specific patterns while enabling cross-well comparisons.
 
-- **Addresses Operational Variability**: Normalizing globally helps mitigate discrepancies due to different logging tools or geological differences, assuming that significant outliers or errors have been addressed during initial data cleaning.
+### Variance-Based Decision Rules
+For each column in our dataset, we apply specific rules based on variance analysis:
 
-- **Prevents Data Leakage**: Calculating normalization parameters only on the training data in each fold ensures that information from the validation set doesn't influence the training process.
+- **Low Global Variance (< 1e-3)**: Columns with extremely low global variance are completely removed ('drop'). These features provide little to no information for the model and may introduce noise.
+
+- **Low Per-Well Variance but Varying Between Wells**: Columns that show low variance within individual wells but change significantly between wells are marked as 'global_static' and normalized once using a global_scaler. This preserves the between-well differences while standardizing the overall scale.
+
+- **Sufficient Variability**: Columns with adequate variability are processed using the most appropriate technique (robust, power_robust, boxcox_robust) on a well-by-well basis. This allows for customized handling of each feature's distribution.
+
+This variance-based approach ensures that each feature is treated according to its statistical properties, optimizing the information it can provide to the model.
+
+The following table summarizes the decision rules implemented in our code:
+
+| Condition | Action Applied | Implementation |
+|-----------|----------------|----------------|
+| Global variance < 1e-3 | 'drop' | Feature is excluded from the dataset |
+| Low variance within wells but varying between wells | 'global_static' | Scaled once with global_scaler |
+| Contains negative values with skewness | 'power_robust' | Yeo-Johnson + RobustScaler pipeline |
+| Positive values with high skewness | 'boxcox_robust' | Box-Cox + RobustScaler pipeline |
+| Normal-like distribution | 'robust' | RobustScaler only |
+| Categorical data | 'categorical' | OrdinalEncoder applied |
+
+These transformer types directly correspond to the implementation in our codebase's `determine_global_transformer_types()` function and the transformation logic in `SimpleColumnTransformer`. This alignment between documentation and code ensures that the described strategy accurately reflects the actual implementation.
+
+### Global vs Local Scaling
+Our normalization pipeline implements a dual-scaling approach:
+
+- **Global Scaling**: Applied to columns like Well_ID, Latitude, Longitude, and columns identified as 'global_static'. The global_scaler is trained once using data from all wells, ensuring consistent treatment of these features across the entire dataset.
+
+- **Local Scaling**: Applied well by well to the remaining columns based on the selected technique. This preserves well-specific patterns while standardizing scales within each well.
+
+This separation allows us to balance between maintaining global context (important for geographic and static features) and respecting well-specific characteristics (critical for petrophysical measurements).
+
+### Formation Encoding Strategy
+The 'Formation' column receives special treatment in our pipeline:
+
+- It is encoded globally using LabelEncoder, ignoring values labeled as 'unknown'.
+- Formations not seen during training are assigned to a special unknown_index.
+- This unknown_index is propagated throughout the pipeline and respected in custom metrics and inference.
+
+This approach ensures consistent formation encoding across wells while gracefully handling previously unseen formations during prediction, which is essential for practical deployment in new wells.
 
 ### Handling Negative Values and Skewness
 Some petrophysical logs contain negative values or exhibit skewed distributions. Our integrated approach to address these issues includes:
@@ -60,6 +98,19 @@ Including well identifiers (like well names or IDs) as features in our models co
 - **Rationale**: New wells, which the model hasn't seen before, wouldn't have corresponding identifiers, making this feature unhelpful for prediction. By excluding well identifiers, we ensure the model focuses on the petrophysical measurements themselves.
 
 - **Operational Benefit**: This decision aligns with the practical need for models that can be applied to new wells without requiring well-specific adjustments or information.
+
+### Quality Controls
+Our normalization pipeline includes several quality control mechanisms:
+
+- **NaN and Inf Validation**: Columns with NaN or Inf values after transformation are identified and addressed. The pipeline ensures that all normalized data is clean and usable.
+
+- **Low Variance Documentation**: Columns with low variance are documented, and their handling (exclusion or transformation) is tracked for transparency.
+
+- **Column Alignment**: The pipeline verifies that all wells have the same final columns before concatenation, ensuring consistency in the normalized dataset.
+
+- **Missing Data Handling**: The system gracefully handles missing curves, ensuring the pipeline doesn't break when certain measurements are absent in some wells.
+
+These quality controls enhance the robustness of our normalization process, making it more reliable in production environments.
 
 ### Integrating Decisions into a Processing Pipeline
 To ensure consistency and efficiency, we integrate our normalization steps and decisions into a processing pipeline. This approach:
@@ -133,7 +184,7 @@ $x_{scaled} = \frac{x - median(x)}{IQR(x)}$
 
 **Application in Our Data**:
 
-Since we have already addressed outliers during data cleaning, we rely on standardization. However, robust scaling can be useful if future data includes new outliers.
+We use robust scaling for numerical features that don't require distribution transformation but need protection against outliers.
 
 ### Power Transformations
 Power transformations aim to stabilize variance and make the data more normally distributed.
@@ -160,7 +211,7 @@ $T(x;\lambda) = \begin{cases}
 
 **Application in Our Data**:
 
-We use Yeo-Johnson transformation for logs like SP that have negative values and skewed distributions.
+We use Yeo-Johnson transformation (implemented as 'power_robust') for logs like SP that have negative values and skewed distributions.
 
 #### Box-Cox Transformation
 **Formula**:
@@ -182,7 +233,7 @@ $T(x;\lambda) = \begin{cases}
 
 **Application in Our Data**:
 
-We apply Box-Cox transformation to positive-valued logs that exhibit high skewness to reduce their skewness and approximate normality.
+We apply Box-Cox transformation (implemented as 'boxcox_robust') to positive-valued logs that exhibit high skewness to reduce their skewness and approximate normality.
 
 ### Logarithmic Transformation (FunctionTransformer)
 **Formula**:
@@ -200,35 +251,23 @@ $x_{transformed} = \ln(x)$
 
 We may use logarithmic transformation for features where a logarithmic relationship is appropriate, but care must be taken since it cannot handle zero or negative values.
 
-**Final Thoughts**
-
-Given that:
-Outliers have been removed from your data.
-Transformations (Yeo-Johnson, Box-Cox) are applied to handle negative values and skewness.
-StandardScaler is appropriate for data that is approximately normally distributed.
-My recommendation is to continue using StandardScaler as the default scaler for your numerical features.
-
-However, if you find that certain features still exhibit non-normal distributions after transformations, you may consider:
-
-Using MinMaxScaler for features where the scale is important or where the data does not approximate a normal distribution.
-
-*Implementing logic to select a different scaler based on specific criteria, but be cautious of the added complexity.*
-
 ## Conclusion
-Normalization is a vital step in preparing petrophysical data for analysis and machine learning. By adopting a global normalization strategy within cross-validation folds and thoughtfully handling data characteristics like negative values and skewness using appropriate mathematical transformations, we enhance the performance and generalizability of our models.
+Normalization is a vital step in preparing petrophysical data for analysis and machine learning. By adopting a column-based normalization strategy with variance-based decision rules and appropriate handling of special features like Formation, we enhance the performance and generalizability of our models.
 
 Our approach is influenced by the practical realities of petroleum operations, recognizing the variability inherent in data collected from different wells under varying conditions. By focusing on the data itself and applying suitable scaling methods, we develop models that are robust and applicable across a range of operational scenarios.
 
 Through this integrated strategy, we ensure that our data is ready for effective analysis, ultimately supporting better decision-making in petroleum exploration and production.
 
 ## Key Takeaways
-- **Normalization Aligns Scales**: Ensuring all features are on a similar scale is crucial for stable and effective modeling.
+- **Column-Based Normalization**: Each feature is evaluated globally but normalized locally, balancing consistency with well-specific characteristics.
 
-- **Global Normalization Enhances Generalization**: Normalizing across all training data within each cross-validation fold helps the model learn broader patterns applicable to new wells.
+- **Variance-Based Decisions**: Features are processed differently based on their variance properties, ensuring optimal information extraction.
 
-- **Handle Data Characteristics Thoughtfully**: Use mathematical transformations like Yeo-Johnson and Box-Cox to address negative values and skewness.
+- **Global vs Local Scaling**: Different scaling approaches for well identifiers/static features versus petrophysical measurements optimize the balance between global context and local patterns.
 
-- **Understand Scaling Methods**: Each scaling method has advantages suited to specific data characteristics—choosing the right one is essential.
+- **Formation Encoding**: Special handling ensures consistent representation of geological formations while gracefully managing unknown values.
+
+- **Quality Controls**: Robust validation mechanisms ensure clean, consistent normalized data across all wells.
 
 - **Operational Realities Matter**: Consider the impact of logging tools, geological diversity, and operational conditions on your data preprocessing strategy.
 

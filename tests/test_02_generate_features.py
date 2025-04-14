@@ -816,6 +816,41 @@ def run_all_tests():
             except Exception:
                 print(f"  {i}. {test.__name__}")
 
+def test_no_duplicate_columns():
+    """
+    Test that no DataFrame returned by generate_features has duplicated column names.
+    """
+    wells = create_synthetic_wells(num_wells=3, num_samples=50, add_na=False)
+    selected_curves = ['GR', 'RHOB', 'RILD', 'RHOC']
+    curves_to_predict = ['RHOC']
+
+    engineered, _, _ = generate_features(
+        wells,
+        selected_curves,
+        curves_to_predict,
+        var_threshold=None,
+        num_clusters=3,
+        use_boruta=False
+    )
+
+    duplicated_columns = {}
+
+    for well_name, df in engineered.items():
+        duplicates = df.columns[df.columns.duplicated()].tolist()
+        if duplicates:
+            duplicated_columns[well_name] = duplicates
+
+    print("\n=== Duplicate Columns Test ===")
+    if not duplicated_columns:
+        print("✅ No duplicate columns found in any well.")
+    else:
+        print("❌ Duplicate columns found:")
+        for well, cols in duplicated_columns.items():
+            print(f"  - {well}: {cols}")
+    
+    assert not duplicated_columns, "No DataFrame should contain duplicated columns"
+
+
 if __name__ == "__main__":
     # Ejecutar una prueba específica para depuración
     if len(sys.argv) > 1:
@@ -824,7 +859,7 @@ if __name__ == "__main__":
             test_basic_output, test_column_consistency, test_feature_info_types,
             test_local_imputation, test_variance_filtering, test_mandatory_columns,
             test_categorical_validity, test_extreme_values, test_determinism,
-            test_performance, test_missing_curves_handling
+            test_performance, test_missing_curves_handling, test_no_duplicate_columns
         ]}
         
         if test_name in test_functions:

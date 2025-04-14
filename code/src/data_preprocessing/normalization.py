@@ -12,16 +12,10 @@ logger = logging.getLogger(__name__)
 VARIANCE_THRESHOLD = 1e-3
 
 def determine_global_transformer_types(engineered_data, feature_info, global_columns=None):
-    """
-    Determina, a nivel global, qué tipo de transformador usar en cada columna.
-    No se aplica a 'Formation' (o a las 'global_columns'), porque 'Formation'
-    se manejará de forma especial.
-    """
     combined_df = pd.concat(engineered_data.values(), ignore_index=True)
     transformer_types = {}
 
     for col in combined_df.columns:
-        # Si col es global (Well_ID, Latitude, Longitude) o Formation, lo saltamos aquí
         if global_columns and col in global_columns:
             continue
         if col.lower() == 'formation':
@@ -35,29 +29,31 @@ def determine_global_transformer_types(engineered_data, feature_info, global_col
         elif col_type == 'coordinate':
             transformer_types[col] = 'coord'
         elif col_type == 'numerical':
-            # Convert to numeric if possible (in case it's an object type but contains numbers)
             if not pd.api.types.is_numeric_dtype(series):
                 try:
                     series = pd.to_numeric(series, errors='coerce').dropna()
                 except:
                     transformer_types[col] = 'none'
                     continue
-                    
-            # Now check variance
+
             try:
-                var_value = series.var()
-                if var_value < VARIANCE_THRESHOLD:
-                    logger.warning(f"Columna '{col}' con varianza baja. Se ignorará su transformación.")
-                    transformer_types[col] = 'none'
-                elif series.min() <= 0:
-                    transformer_types[col] = 'power_robust'
-                elif series.skew() > 1.0:
-                    transformer_types[col] = 'boxcox_robust'
+                global_var = series.var()
+                if global_var < VARIANCE_THRESHOLD:
+                    transformer_types[col] = 'drop'
                 else:
-                    transformer_types[col] = 'robust'
-            except TypeError:
-                # If variance calculation fails, treat as non-transformable
-                logger.warning(f"No se puede calcular la varianza para '{col}'. Se ignorará su transformación.")
+                    per_well_vars = [df[col].dropna().var() for df in engineered_data.values() if col in df.columns and df[col].dropna().shape[0] > 1]
+                    low_var_in_all_wells = all(v is not None and v < VARIANCE_THRESHOLD for v in per_well_vars)
+
+                    if low_var_in_all_wells:
+                        transformer_types[col] = 'global_static'
+                    elif series.min() <= 0:
+                        transformer_types[col] = 'power_robust'
+                    elif series.skew() > 1.0:
+                        transformer_types[col] = 'boxcox_robust'
+                    else:
+                        transformer_types[col] = 'robust'
+            except Exception as e:
+                logger.warning(f"Fallo al analizar la columna '{col}': {e}")
                 transformer_types[col] = 'none'
         else:
             transformer_types[col] = 'none'
@@ -65,15 +61,6 @@ def determine_global_transformer_types(engineered_data, feature_info, global_col
     return transformer_types
 
 class SimpleColumnTransformer(BaseEstimator, TransformerMixin):
-    """
-    Transforma columnas según el tipo forzado. En este ejemplo:
-      - 'categorical' => OrdinalEncoder (con unknown_value = -1)
-      - 'coord'/'robust'/... => Se aplican los pipelines de sklearn
-      - 'none' => No aplica nada
-
-    Se ha ELIMINADO el bloque especial 'if col == Formation' dentro de 'categorical'
-    porque la codificación global de Formation se hace ANTES de usar este transformador.
-    """
     def __init__(self, feature_info, global_columns=None, forced_types=None):
         self.feature_info = feature_info
         self.global_columns = global_columns if global_columns else []
@@ -84,21 +71,16 @@ class SimpleColumnTransformer(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         for col in X.columns:
             ttype = self.forced_types.get(col)
-            if not ttype:
+            if not ttype or ttype in ['none', 'drop']:
+                self.per_well_transformers[col] = (ttype, None, None)
                 continue
 
-            if ttype == 'none':
-                self.per_well_transformers[col] = ('none', None, None)
-                continue
-
-            # Convertir a np.array para pipelines
             series = X[col].dropna().values.reshape(-1, 1)
 
             if ttype == 'categorical':
-                # Usamos OrdinalEncoder para cat. genéricas
                 enc = OrdinalEncoder(handle_unknown='use_encoded_value', unknown_value=-1)
                 enc.fit(series)
-                self.per_well_transformers[col] = ('categorical', enc, None)
+                self.per_well_transformers[col] = (ttype, enc, None)
 
             elif ttype == 'coord' or ttype == 'robust':
                 scaler = RobustScaler().fit(series)
@@ -118,47 +100,71 @@ class SimpleColumnTransformer(BaseEstimator, TransformerMixin):
                 ]).fit(series)
                 self.per_well_transformers[col] = (ttype, pipeline, None)
 
+            elif ttype == 'global_static':
+                self.per_well_transformers[col] = (ttype, None, None)
+
             else:
                 self.per_well_transformers[col] = ('none', None, None)
 
         return self
 
-    def inverse_transform(self, X):
-        """
-        Aplica, para cada columna de X, el método inverse_transform del transformer correspondiente,
-        si está implementado. Devuelve un DataFrame con los valores revertidos.
-        """
-        X_out = X.copy()
-        for col in X_out.columns:
-            ttype, transformer, max_value = self.per_well_transformers.get(col, (None, None, None))
-            if ttype is None or ttype == 'none' or transformer is None:
-                continue
-            if hasattr(transformer, 'inverse_transform'):
-                try:
-                    # transformer.inverse_transform espera una matriz 2D.
-                    X_out[col] = transformer.inverse_transform(X_out[[col]]).ravel()
-                except Exception as e:
-                    print(f"Error en inverse_transform para la columna '{col}': {e}")
-                    continue
-        return X_out
-
     def transform(self, X):
         X_out = X.copy()
+        for col in list(X_out.columns):
+            try:
+                ttype, transformer, _ = self.per_well_transformers.get(col, (None, None, None))
+                if ttype == 'drop':
+                    X_out.drop(columns=col, inplace=True, errors='ignore')
+                    continue
+
+                if ttype == 'global_static' and transformer is None:
+                    continue  # ya fue transformado por el global_scaler
+
+                if ttype == 'categorical' and transformer is not None:
+                    # Check if we have non-NA values to transform
+                    mask = X_out[col].notna()
+                    if not mask.any():
+                        continue  # Skip if all values are NA
+                        
+                    vals = X_out.loc[mask, col].values.reshape(-1, 1)
+                    if len(vals) > 0:  # Only transform if we have values
+                        transformed = transformer.transform(vals)
+                        X_out.loc[mask, col] = transformed.ravel()
+                elif transformer is not None:
+                    # Check if we have non-NA values to transform
+                    mask = X_out[col].notna()
+                    if not mask.any():
+                        continue  # Skip if all values are NA
+                        
+                    series = X_out.loc[mask, col].values.reshape(-1, 1)
+                    if len(series) > 0:  # Only transform if we have values
+                        transformed = transformer.transform(series)
+                        X_out.loc[mask, col] = transformed.ravel()
+            except Exception as e:
+                logger.warning(f"Error transforming column {col}: {e}. Keeping original values.")
+                
+        return X_out
+
+    def inverse_transform(self, X):
+        X_out = X.copy()
         for col in X_out.columns:
-            ttype, transformer, max_value = self.per_well_transformers.get(col, (None, None, None))
-            if ttype is None or ttype == 'none' or transformer is None:
-                continue
-            if ttype == 'categorical':
-                vals = X_out[col].dropna().values.reshape(-1, 1)
-                transformed = transformer.transform(vals)
-                mask = X_out[col].notna()
-                X_out.loc[mask, col] = transformed.ravel()
-            else:
-                # 'coord', 'robust', 'power_robust', 'boxcox_robust'
-                series = X_out[col].dropna().values.reshape(-1, 1)
-                transformed = transformer.transform(series)
-                mask = X_out[col].notna()
-                X_out.loc[mask, col] = transformed.ravel()
+            try:
+                ttype, transformer, _ = self.per_well_transformers.get(col, (None, None, None))
+                if ttype in ['none', 'drop'] or transformer is None:
+                    continue
+                if hasattr(transformer, 'inverse_transform'):
+                    # Only apply to non-NA values
+                    mask = X_out[col].notna()
+                    if not mask.any():
+                        continue  # Skip if all values are NA
+                        
+                    # Only transform if we have values
+                    if mask.any():
+                        values = X_out.loc[mask, [col]]
+                        transformed = transformer.inverse_transform(values)
+                        X_out.loc[mask, col] = transformed.ravel()
+            except Exception as e:
+                logger.warning(f"Error in inverse_transform for column '{col}': {e}. Keeping original values.")
         return X_out
 
 def compute_common_descriptors(df):
@@ -200,7 +206,7 @@ def prepare_and_normalize_data(
     9) Devuelve X_scaled, y_scaled, normalizers, scaler_info, unknown_index, formation_encoder, global_scaler, global_types, y_descriptors, common_descriptors
     """
     logger.info("=== Normalización unificada por tipo pero con Formation codificada globalmente ===")
-    all_data = pd.concat(engineered_data.values(), ignore_index=True)
+    all_data = pd.concat(engineered_data.values())
 
     # ----------------------------------------------------------------------
     # 1) CODIFICACIÓN GLOBAL DE 'Formation'
@@ -263,8 +269,19 @@ def prepare_and_normalize_data(
         logger.info(f"Normalizando pozo: {well_name}")
         df_local = df_well.copy()
         if 'Formation' in df_local.columns:
-            idxs = df_local.index
-            df_local['Formation'] = all_data.loc[idxs, 'Formation'].values
+            # Create a formation mapping rather than using direct index lookup
+            # This avoids the KeyError when indices don't match
+            formation_mapping = {}
+            for idx in df_local.index:
+                formation_val = df_local.at[idx, 'Formation']
+                formation_val_str = str(formation_val)
+                if formation_val_str in formation_encoder.classes_:
+                    formation_mapping[idx] = formation_encoder.transform([formation_val_str])[0]
+                else:
+                    formation_mapping[idx] = unknown_index
+            
+            # Apply the formation mapping
+            df_local['Formation'] = df_local.index.map(lambda idx: formation_mapping.get(idx, unknown_index))
         target_cols = [c for c in curves_to_predict if c in df_local.columns]
         feature_cols = [c for c in df_local.columns if c not in target_cols]
         X_df = df_local[feature_cols].copy()
@@ -272,8 +289,20 @@ def prepare_and_normalize_data(
         # 4a) Transformaciones globales
         for col in global_columns:
             if col in X_df.columns:
-                g_trans = global_scaler.transform(df_local[[col]])
-                X_df[col] = g_trans[col]
+                try:
+                    # Ensure we have valid data to transform
+                    if df_local[col].notna().any():
+                        g_trans = global_scaler.transform(df_local[[col]])
+                        # Handle the case where transform returns a different structure
+                        if isinstance(g_trans, pd.DataFrame) and col in g_trans.columns:
+                            X_df.loc[:, col] = g_trans[col].values
+                        else:
+                            logger.warning(f"Unexpected transform result for column {col}. Keeping original values.")
+                    else:
+                        logger.warning(f"Column {col} contains only NaN values in well {well_name}. Skipping transformation.")
+                except Exception as e:
+                    logger.error(f"Error transforming global column {col}: {e}")
+                    # Keep the original values if transformation fails
         # 4b) Transformaciones locales para X
         local_scaler = SimpleColumnTransformer(
             feature_info=feature_info,

@@ -268,7 +268,7 @@ def generate_features(
     elastic_cols = ["Acoustic_Impedance"]
     ac_cols = ["AC_lag1", "AC_lag2", "AC_lag3", "AC_dom_cycle"]
     adv_ent_cols = [f"{c}_PermEntropy" for c in ("GR", "RILD")] + [f"{c}_ShannonAdaptive" for c in ("GR", "RILD")]
-    flag_cols = ["is_shale", "is_carb"]
+    flag_cols = []  # Removed "is_shale", "is_carb" as they are now in cat_cols
 
     direct = [
         "RILD_minus_RILM", "RILD_minus_RHOC", "RILD_over_RILM", "RHOC_minus_RHOB",
@@ -281,11 +281,11 @@ def generate_features(
     ]
     stats_curves = ["GR", "RILD", "RHOC", "RHOB"]
     depth_cols = ["Normalized_Depth", "Depth_Squared"]
-    geo_cols = ["Well_ID"]
+    geo_cols = []  # Removed "Well_ID" from here as it's already in cat_cols
     cluster_cols = ["kmeans_cluster", "agglo_cluster"]
     freq_cols = ["GR_LocalFreq", "RILD_LocalFreq", "RHOC_LocalFreq"]
     ent_cols = ["GR_LocalEntropy", "GR_LocalComplexity", "RILD_LocalEntropy", "RILD_LocalComplexity"]
-    cat_cols = ["Vsh_class", "Phi_class", "SwVsh_class", "Well_ID"]
+    cat_cols = ["Vsh_class", "Phi_class", "SwVsh_class", "Well_ID", "is_shale", "is_carb"]  # Added is_shale and is_carb
 
     master_num = (
         ms_cols + grad_cols + rug_cols + tex_cols + corr_cols + ratio_cols + elastic_cols + ac_cols + adv_ent_cols +
@@ -479,8 +479,8 @@ def generate_features(
 
         # N) Flags lógicos
         if set(["GR", "RHOB"]).issubset(d.columns):
-            d["is_shale"] = (d["GR"] > 75).astype(int)
-            d["is_carb"] = ((d["RHOB"] < 2.4) & (d["GR"] < 50)).astype(int)
+            d["is_shale"] = (d["GR"] > 75).astype("category")
+            d["is_carb"] = ((d["RHOB"] < 2.4) & (d["GR"] < 50)).astype("category")
             
         # Crear columnas categóricas con protección anti-NaN
         d["Vsh_class"] = _create_vsh_class(d["Vsh"])
@@ -494,7 +494,7 @@ def generate_features(
                 d[col] = np.nan
         df_final = d[master_all + curves_to_predict].copy()
         # Ensure all categorical columns have the correct type
-        df_final = df_final.astype({c: "category" for c in cat_cols + ["kmeans_cluster", "agglo_cluster", "Well_ID"]})
+        df_final = df_final.astype({c: "category" for c in cat_cols + ["kmeans_cluster", "agglo_cluster"]})
         df_final = _impute_local(df_final, window_size)
         engineered[well] = df_final
 

@@ -132,76 +132,76 @@ def pipeline(data, selected_curves, curves_to_predict):
 
     ################################## Step 3: Data Normalization ##################################
 
-    # logger.info("Step 3: Normalizing and preparing data...")
+    logger.info("Step 3: Normalizing and preparing data...")
 
-    # # Llamamos a la nueva función de normalización pozo a pozo con tratamiento global
-    # X_scaled, y_scaled, normalizers, scaler_info, unknown_index,formation_encoder, global_scaler, global_types, y_descriptors, common_descriptors = prepare_and_normalize_data(
-    #     engineered_data,
-    #     feature_info,
-    #     curves_to_predict,
-    #     global_columns=global_columns
-    # )
+    # Llamamos a la nueva función de normalización pozo a pozo con tratamiento global
+    X_scaled, y_scaled, normalizers, scaler_info, unknown_index,formation_encoder, global_scaler, global_types, y_descriptors, common_descriptors = prepare_and_normalize_data(
+        engineered_data,
+        feature_info,
+        curves_to_predict,
+        global_columns=global_columns
+    )
 
-    # logger.info(f"    Data normalized successfully - X shape: {X_scaled.shape}, y shape: {y_scaled.shape}")
+    logger.info(f"    Data normalized successfully - X shape: {X_scaled.shape}, y shape: {y_scaled.shape}")
 
-    # # Resumen acumulado por tipo de transformación
-    # from collections import defaultdict
+    # Resumen acumulado por tipo de transformación
+    from collections import defaultdict
 
-    # transform_summary = defaultdict(set)  # dict: tipo → set(features)
-    # target_summary = defaultdict(set)
+    transform_summary = defaultdict(set)  # dict: tipo → set(features)
+    target_summary = defaultdict(set)
 
-    # for well_name, info in scaler_info.items():
-    #     for col, values in info["X"].items():
-    #         if len(values) == 2:
-    #             transform_type, _ = values
-    #         elif len(values) == 3:
-    #             transform_type, _, _ = values  # Se ignora el tercer valor
+    for well_name, info in scaler_info.items():
+        for col, values in info["X"].items():
+            if len(values) == 2:
+                transform_type, _ = values
+            elif len(values) == 3:
+                transform_type, _, _ = values  # Se ignora el tercer valor
 
-    #         transform_summary[transform_type].add(col)
+            transform_summary[transform_type].add(col)
 
-    #     for col, values in info["y"].items():
-    #         if len(values) == 2:
-    #             transform_type, _ = values
-    #         elif len(values) == 3:
-    #             transform_type, _, _ = values  # Se ignora el tercer valor
+        for col, values in info["y"].items():
+            if len(values) == 2:
+                transform_type, _ = values
+            elif len(values) == 3:
+                transform_type, _, _ = values  # Se ignora el tercer valor
 
-    #         target_summary[transform_type].add(col)
+            target_summary[transform_type].add(col)
 
-    # # Mostrar resumen de transformaciones de X
-    # logger.info("    Feature transformation summary (X):")
-    # for transform_type in ['power_robust', 'boxcox_robust', 'robust', 'categorical', 'coord', 'none']:
-    #     features = sorted(transform_summary.get(transform_type, []))
-    #     if features:
-    #         label = {
-    #             'power_robust': 'PowerTransformer (Yeo-Johnson)',
-    #             'boxcox_robust': 'PowerTransformer (Box-Cox)',
-    #             'robust': 'RobustScaler',
-    #             'categorical': 'OrdinalEncoder',
-    #             'coord': 'Coordinate features',
-    #             'none': 'Unprocessed features'
-    #         }[transform_type]
-    #         logger.info(f"    {label} ({len(features)} features):")
-    #         for f in features:
-    #             logger.info(f"        - {f}")
+    # Mostrar resumen de transformaciones de X
+    logger.info("    Feature transformation summary (X):")
+    for transform_type in ['power_robust', 'boxcox_robust', 'robust', 'categorical', 'coord', 'none']:
+        features = sorted(transform_summary.get(transform_type, []))
+        if features:
+            label = {
+                'power_robust': 'PowerTransformer (Yeo-Johnson)',
+                'boxcox_robust': 'PowerTransformer (Box-Cox)',
+                'robust': 'RobustScaler',
+                'categorical': 'OrdinalEncoder',
+                'coord': 'Coordinate features',
+                'none': 'Unprocessed features'
+            }[transform_type]
+            logger.info(f"    {label} ({len(features)} features):")
+            for f in features:
+                logger.info(f"        - {f}")
 
-    # # Mostrar resumen de transformaciones de Y (targets)
-    # if any(info["y"] for info in scaler_info.values()):
-    #     logger.info("    Target variables transformation (y):")
-    #     for transform_type, features in target_summary.items():
-    #         logger.info(f"    {transform_type} ({len(features)} targets):")
-    #         for f in sorted(features):
-    #             logger.info(f"        - {f}")
+    # Mostrar resumen de transformaciones de Y (targets)
+    if any(info["y"] for info in scaler_info.values()):
+        logger.info("    Target variables transformation (y):")
+        for transform_type, features in target_summary.items():
+            logger.info(f"    {transform_type} ({len(features)} targets):")
+            for f in sorted(features):
+                logger.info(f"        - {f}")
 
     # ################################## Step 4: Hyperparameter Optimization ##################################
 
-    # # Determinar número de clases válidas para clasificación (excluyendo la clase unknown)
-    # all_classes = y_scaled['Formation'].unique()
-    # classification_output_shape = len([cls for cls in all_classes if cls != unknown_index])
+    # Determinar número de clases válidas para clasificación (excluyendo la clase unknown)
+    all_classes = y_scaled['Formation'].unique()
+    classification_output_shape = len([cls for cls in all_classes if cls != unknown_index])
 
-    # # Step 4: Initial Hyperparameter Optimization
-    # logger.info("Step 5: Starting initial hyperparameter optimization...")
-    # top_configs, study = optimize_hyperparameters(X_scaled, y_scaled, unknown_index, classification_output_shape)
-    # logger.info(f"    Initial hyperparameter optimization completed.")
+    # Step 4: Initial Hyperparameter Optimization
+    logger.info("Step 5: Starting initial hyperparameter optimization...")
+    top_configs, study = optimize_hyperparameters(X_scaled, y_scaled, unknown_index, classification_output_shape)
+    logger.info(f"    Initial hyperparameter optimization completed.")
 
     # # Log detailed results of hyperparameter optimization
     # logger.info("\nBest Hyperparameter Configurations:")
@@ -362,5 +362,7 @@ def pipeline(data, selected_curves, curves_to_predict):
 
 
     # Return all the important data structures needed for the next steps
-    return train_validation_data, external_test_data, engineered_data, feature_info, #X_scaled, y_scaled, #normalizers, scaler_info, all_classes, #top_configs, study #best_config, cv_results
+    return (train_validation_data, external_test_data, engineered_data, feature_info, # Step 2 - Feature Engineering
+        X_scaled, y_scaled, normalizers, scaler_info, unknown_index, formation_encoder, 
+        global_scaler, global_types, y_descriptors, common_descriptors) # Step 3 - Normalization
 
