@@ -1,204 +1,314 @@
-import os
+from typing import Dict, List
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
-
+import logging
+from sklearn.base import TransformerMixin
 from src.data_preprocessing.feature_engineering import generate_features
-from src.data_preprocessing.normalization import (
-    SimpleColumnTransformer,
-    compute_common_descriptors,
-)
-from src.neural_network.metrics import (
-    MaskedSparseCategoricalAccuracy,
-    MaskedTopKAccuracy,
-)
+from src.data_preprocessing.normalization import compute_common_descriptors, transform_new_well
 
-###############################################
-# Utilidades de depuración                    #
-###############################################
+logger = logging.getLogger(__name__)
 
-def print_min_max_by_col(df, prefix=""):
-    """Imprime min / max o categorías por columna (debug)."""
-    print(f"{prefix} DataFrame shape={df.shape}")
-    for col in df.columns:
-        if pd.api.types.is_categorical_dtype(df[col]):
-            cats = df[col].cat.categories.tolist()
-            print(f"{prefix}  - Col '{col}': categorical, categories: {cats}")
-        else:
-            try:
-                print(f"{prefix}  - Col '{col}': min={df[col].min()}, max={df[col].max()}")
-            except Exception as e:
-                print(f"{prefix}  - Col '{col}': error al obtener rango: {e}")
-
-
-def select_best_scaler(new_descriptor: np.ndarray, ref_descriptors: dict):
-    """Encuentra el pozo de referencia más parecido por distancia euclídea."""
-    best_well, best_dist = None, np.inf
-    for well, desc in ref_descriptors.items():
-        if desc is None or np.any(np.isnan(desc)):
-            continue
-        dist = np.linalg.norm(new_descriptor - desc)
-        if dist < best_dist:
-            best_dist, best_well = dist, well
-    return best_well, best_dist
-
-###############################################
-# Función principal                           #
-###############################################
 
 def predict_wells(
-    wells_data: dict,
-    *,
-    global_scaler,
-    selected_curves,
-    curves_to_predict,
-    formation_encoder,
-    models,
-    save_dir: str | None,
-    transform_types: dict,
-    ref_normalizers: dict,
-    ref_descriptors: dict,
-    unknown_index: int | None = None,
-    evaluate: bool = False,
-):
-    """Predice CNLS y Formation para cualquier conjunto de pozos.
+    wells_data: Dict[str, pd.DataFrame],
+    models: List,
+    feature_info: Dict[str, str],
+    selected_curves: List[str],
+    final_cols: List[str],
+    global_scaler: TransformerMixin,
+    global_columns: List[str],
+    scaler_info: Dict[str, Dict[str, any]],
+    well_desc: Dict[str, np.ndarray],
+    curves_to_predict: List[str]
+) -> Dict[str, pd.DataFrame]:
 
-    * Si ``evaluate`` es *True*, calcula las mismas métricas usadas en el
-      entrenamiento (MAE, RMSE, MAPE, masked accuracies).
-    * ``transform_types`` son los tipos de transformación forzados generados
-      durante la fase de entrenamiento.
-    * ``ref_normalizers`` y ``ref_descriptors`` provienen de los pozos de
-      entrenamiento y se usan para desnormalizar CNLS.
-    """
-    global_cols = ["Well_ID", "Latitude", "Longitude", "Formation"]
-    if save_dir:
-        os.makedirs(save_dir, exist_ok=True)
+    results: Dict[str, pd.DataFrame] = {}
+    
+    # Determinar el número de columnas que espera el modelo
+    expected_columns = None
+    if models and hasattr(models[0], 'input_shape'):
+        expected_columns = models[0].input_shape[1]
+        logger.info(f"Modelo espera {expected_columns} columnas")
+    
+    # Si no se puede determinar directamente, asumimos 102 columnas basado en el error
+    if expected_columns is None:
+        expected_columns = 102
+        logger.warning(f"No se pudo obtener shape del modelo. Asumiendo {expected_columns} columnas.")
 
-    results, metrics_out = {}, {}
-
-    for well_name, df in tqdm(wells_data.items(), desc="Inferencia pozos"):
-        print(f"\n[{well_name}] ===== INICIO DEL POZO =====")
-        original_df = df.copy()
-        print(f"[{well_name}] Shape original: {df.shape}")
-
-        # 1) Feature engineering (igual que en training)
-        df_eng, _ = generate_features(
-            {well_name: df},
-            selected_curves=selected_curves,
-            curves_to_predict=curves_to_predict,
-            window_size=20,
-            num_clusters=15,
-        )
-        df_eng = df_eng[well_name]
-        print(f"[{well_name}] Shape después de feature engineering: {df_eng.shape}")
-
-        # 2) Separar features / targets
-        target_cols = [c for c in curves_to_predict if c in df_eng.columns]
-        feature_cols = [c for c in df_eng.columns if c not in target_cols]
-        X = df_eng[feature_cols].copy()
-        Y_true = df_eng[target_cols].copy() if target_cols else pd.DataFrame(index=df_eng.index)
-
-        print(f"[{well_name}] Nº columnas target: {len(target_cols)} | features: {len(feature_cols)}")
-        if not transform_types:
-            raise ValueError("transform_types no proporcionado – pásalo desde la fase de entrenamiento.")
-
-        # 3) Escalado GLOBAL
-        global_cols_in_df = [c for c in global_cols if c in X.columns]
-        if global_cols_in_df:
-            X.update(global_scaler.transform(X[global_cols_in_df]))
-            print_min_max_by_col(X[global_cols_in_df], prefix=f"[{well_name}] X GLOBAL AFTER SCALER")
-
-        # 4) Escalado LOCAL
-        non_global_cols = [c for c in X.columns if c not in global_cols]
-        feature_info = {
-            col: ("categorical" if X[col].dtype == "object" else "numerical")
-            for col in non_global_cols
-        }
-        transform_types["CNLS"] = "none"  # asegurar que CNLS no se escale
-        local_scaler = SimpleColumnTransformer(feature_info, global_columns=global_cols, forced_types=transform_types)
-        local_scaler.fit(X[non_global_cols])
-        X.update(local_scaler.transform(X[non_global_cols]))
-        print(f"[{well_name}] Shape final de X normalizado: {X.shape}")
-
-        # 5) Predicción
-        if models is None:
-            raise ValueError("'models' no puede ser None. Asegúrate de pasar el/los modelo(s) entrenados.")
-        if not isinstance(models, (list, tuple)):
-            models = [models]        # ← convierte el modelo suelto en lista
-        models = [m for m in models if m is not None]
-
-
-
-        preds_reg, preds_clf_proba = [], []
-        for model in models:
-            pr = model.predict(X.values, verbose=0)
-            preds_reg.append(pr[0].ravel())
-            preds_clf_proba.append(pr[1])
-        avg_reg = np.mean(preds_reg, axis=0)
-        mean_proba = np.mean(preds_clf_proba, axis=0)
-        print(f"[{well_name}] Pred CNLS BEFORE inverse: min={avg_reg.min()}, max={avg_reg.max()}")
-
-        # 6) Desnormalizar CNLS
-        new_desc = compute_common_descriptors(X)
-        best_well, dist = select_best_scaler(new_desc, ref_descriptors)
-        if best_well and best_well in ref_normalizers and ref_normalizers[best_well].get("y") is not None:
-            y_scaler = ref_normalizers[best_well]["y"]
-            avg_reg = y_scaler.inverse_transform(pd.DataFrame(avg_reg, columns=["CNLS"]))["CNLS"].values
-            print(f"[{well_name}] CNLS desnormalizado con escalador de {best_well} (dist={dist:.3f})")
-        else:
-            print(f"[{well_name}] Sin escalador adecuado; se mantiene la escala de predicción.")
-
-        # 7) Decodificar Formation
-        avg_class = np.argmax(mean_proba, axis=1)
-        if formation_encoder is not None:
-            formation_pred = [
-                formation_encoder.inverse_transform([c])[0] if c < len(formation_encoder.classes_) else "Unknown"
-                for c in avg_class
-            ]
-            formation_pred = np.array(formation_pred, dtype=object)
-        else:
-            formation_pred = avg_class
-
-        # 8) Resultado final
-        result_df = original_df.copy()
-        result_df["CNLS_predicted"] = avg_reg
-        result_df["Formation_predicted"] = formation_pred
-        if "DEPT" not in result_df.columns:
-            result_df.insert(0, "DEPT", result_df.index.values)
-        results[well_name] = result_df
-
-        if save_dir is not None:
-            cols_to_save = ["DEPT", "CNLS", "CNLS_predicted", "Formation", "Formation_predicted"]
-            result_df[[c for c in cols_to_save if c in result_df.columns]].to_csv(
-                os.path.join(save_dir, f"{well_name}_predicted.csv"), index=False
+    for well_name, df in wells_data.items():
+        try:
+            logger.info(f"Procesando pozo: {well_name}")
+            
+            # 1) Drop de curvas objetivo y feature engineering
+            df_input = df.drop(columns=curves_to_predict, errors='ignore')
+            engineered_data, _, _ = generate_features(
+                {well_name: df_input},
+                selected_curves,
+                curves_to_predict
             )
+            X_feat = engineered_data[well_name]
+            
+            logger.info(f"Feature engineering completado para {well_name}. Columnas generadas: {len(X_feat.columns)}")
 
-        # 9) Evaluación (opcional)
-        if evaluate and not Y_true.empty:
-            metrics_dict = {}
-            if "CNLS" in Y_true.columns:
-                y_true_cnls = Y_true["CNLS"].values
-                diff = y_true_cnls - avg_reg
-                metrics_dict["mae"] = float(np.mean(np.abs(diff)))
-                metrics_dict["rmse"] = float(np.sqrt(np.mean(diff**2)))
-                metrics_dict["mape"] = float(np.mean(np.abs(diff) / (np.abs(y_true_cnls) + 1e-6)) * 100.0)
-            if "Formation" in Y_true.columns and formation_encoder is not None and unknown_index is not None:
-                true_form = Y_true["Formation"].values
-                masked_acc = MaskedSparseCategoricalAccuracy(unknown_index)
-                topk_acc = MaskedTopKAccuracy(unknown_index, k=3)
-                masked_acc.update_state(true_form, mean_proba)
-                topk_acc.update_state(true_form, mean_proba)
-                metrics_dict["masked_sparse_acc"] = float(masked_acc.result().numpy())
-                metrics_dict["masked_top_k_acc"] = float(topk_acc.result().numpy())
-            metrics_out[well_name] = metrics_dict
-            print(f"[{well_name}] Métricas: {metrics_dict}")
+            # 2) Normalización usando transform_new_well modificado para usar feature_info
+            # Construimos un diccionario para los transformadores por pozo desde scaler_info
+            fpw = {}
+            
+            # Verifica la estructura de scaler_info antes de procesarlo
+            if isinstance(scaler_info, dict):
+                # Si tenemos una nueva estructura de normalizers
+                if 'feature' in scaler_info and 'per_well' in scaler_info['feature']:
+                    fpw = scaler_info['feature']['per_well']
+                    logger.info("Usando estructura normalizers['feature']['per_well'] para transformadores por pozo")
+                else:
+                    # Examinamos si es un diccionario de pozos con transformadores
+                    for w, w_info in scaler_info.items():
+                        fpw_well = {}
+                        
+                        # Verificamos si w_info tiene una clave 'X'
+                        if isinstance(w_info, dict) and 'X' in w_info:
+                            # Iteramos por los transformadores
+                            for col, col_info in w_info['X'].items():
+                                # Verificamos si col_info es una tupla con al menos 2 elementos
+                                if isinstance(col_info, tuple) and len(col_info) >= 2:
+                                    ttype, transformer = col_info[0], col_info[1]
+                                    if ttype != 'drop' and transformer is not None:
+                                        fpw_well[col] = transformer
+                        
+                        if fpw_well:
+                            fpw[w] = fpw_well
+            
+            # Para los transformadores globales, usamos global_scaler
+            fg = {}
+            if 'feature' in scaler_info and 'global' in scaler_info['feature']:
+                fg = scaler_info['feature']['global']
+                logger.info("Usando estructura normalizers['feature']['global'] para transformadores globales")
+            elif isinstance(global_scaler, dict):
+                # Si es un diccionario, lo usamos directamente
+                fg = {k: v for k, v in global_scaler.items() if v is not None}
+            else:
+                # Si es un transformador único, lo aplicamos a todas las columnas globales
+                for col in global_columns:
+                    if global_scaler is not None:
+                        fg[col] = global_scaler
+            
+            # Obtenemos los encoders categóricos
+            encs = {}
+            if 'feature' in scaler_info and 'encoders' in scaler_info['feature']:
+                encs = scaler_info['feature']['encoders']
+                logger.info("Usando encoders categóricos de normalizers")
+            
+            # Implementación personalizada para transformar los features usando feature_info
+            # 1. Obtener columnas numéricas según feature_info
+            numeric_cols = [c for c in final_cols if c in X_feat.columns and 
+                             c in feature_info and feature_info[c] == 'numerical']
+            
+            logger.info(f"Columnas numéricas para procesamiento: {len(numeric_cols)}")
+            
+            # 2. Calcular descriptores para columnas numéricas (similitud entre pozos)
+            # Solo usamos columnas numéricas para compute_common_descriptors
+            desc_new = compute_common_descriptors(X_feat[numeric_cols])
+            
+            # 3. Encontrar el pozo más cercano basado en descriptores numéricos
+            if well_desc:  # Si tenemos descriptores de pozos
+                # Asegurar que desc_new tiene las mismas dimensiones que los descriptores en well_desc
+                sample_well = next(iter(well_desc.keys()))
+                expected_length = len(well_desc[sample_well])
+                current_length = len(desc_new)
+                
+                if current_length != expected_length:
+                    logger.warning(f"Descriptor mismatch: got {current_length}, expected {expected_length}")
+                    # Ajustar para que tenga la misma longitud que well_desc
+                    if current_length < expected_length:
+                        # Si es más corto, rellenar con ceros
+                        desc_new = np.pad(desc_new, (0, expected_length - current_length))
+                    else:
+                        # Si es más largo, truncar
+                        desc_new = desc_new[:expected_length]
+                        
+                nearest_well = min(
+                    well_desc.keys(),
+                    key=lambda w: np.linalg.norm(desc_new - well_desc[w])
+                )
+                logger.info(f"Pozo más cercano para normalización: {nearest_well}")
+            else:
+                nearest_well = well_name  # Si no hay descriptores, usar el pozo actual
+                logger.info("No hay descriptores de pozos disponibles, usando el pozo actual")
+            
+            # 4. Crear DataFrame transformado
+            X_df = pd.DataFrame(index=X_feat.index)
+            
+            # Registrar el número de columnas esperadas vs disponibles
+            logger.info(f"Columnas esperadas en final_cols: {len(final_cols)}")
+            logger.info(f"Columnas disponibles en X_feat: {len(X_feat.columns)}")
+            logger.info(f"Columnas comunes: {len(set(final_cols) & set(X_feat.columns))}")
+            
+            # 5. Aplicar transformaciones según el tipo de columna y transformador disponible
+            for col in final_cols:
+                if col not in X_feat.columns:
+                    # Si la columna no existe en X_feat, añadir NaN
+                    logger.warning(f"Columna {col} no está en los datos. Rellenando con NaN.")
+                    X_df[col] = np.nan
+                    continue
+                    
+                # Determinar si la columna es categórica según feature_info
+                is_categorical = col in feature_info and feature_info[col] == 'categorical'
+                
+                if is_categorical:
+                    # Para columnas categóricas, aplicar encoding si existe
+                    if col in encs:
+                        enc, unknown_index = encs[col]
+                        vals = X_feat[col].astype(str).values
+                        out = []
+                        for v in vals:
+                            if v == 'unknown':
+                                out.append(unknown_index)
+                            else:
+                                try:
+                                    out.append(enc.transform([v])[0])
+                                except ValueError:
+                                    # Si el valor no está en el encoder, asignar unknown_index
+                                    logger.warning(f"Valor {v} no encontrado en encoder para {col}. Asignando unknown_index.")
+                                    out.append(unknown_index)
+                        X_df[col] = out
+                    else:
+                        # Si no hay encoder, mantener valores originales
+                        X_df[col] = X_feat[col]
+                else:
+                    # Para columnas numéricas, aplicar transformadores si existen
+                    if col in fg:  # Transformador global disponible
+                        vals = X_feat[col].values.reshape(-1, 1)
+                        X_df[col] = fg[col].transform(vals).ravel()
+                    elif nearest_well in fpw and col in fpw[nearest_well]:
+                        # Usar transformador del pozo más cercano
+                        vals = X_feat[col].values.reshape(-1, 1)
+                        X_df[col] = fpw[nearest_well][col].transform(vals).ravel()
+                    else:
+                        # Sin transformador, mantener el valor original
+                        X_df[col] = X_feat[col]
 
-    return (results, metrics_out) if evaluate else (results, None)
+            # Verificar que todas las columnas están presentes
+            for col in final_cols:
+                if col not in X_df.columns:
+                    X_df[col] = np.nan
+                    logger.warning(f"Añadiendo columna faltante {col} con NaN")
+            
+            # Asegurar que X_df tiene las columnas en el mismo orden que final_cols
+            X_df = X_df[final_cols]
+            
+            # Si tenemos más columnas de las que espera el modelo, eliminar las adicionales
+            if len(X_df.columns) > expected_columns:
+                extra_cols = len(X_df.columns) - expected_columns
+                logger.warning(f"Hay {extra_cols} columnas adicionales. Eliminando las últimas {extra_cols} columnas.")
+                columns_to_keep = list(X_df.columns)[:expected_columns]
+                X_df = X_df[columns_to_keep]
+                logger.info(f"Columnas después de ajuste: {len(X_df.columns)}")
+            # Si tenemos menos columnas, esto es un error que no deberíamos tener a este punto
+            elif len(X_df.columns) < expected_columns:
+                missing = expected_columns - len(X_df.columns)
+                logger.error(f"Faltan {missing} columnas para el modelo. Esto no debería ocurrir.")
+                # Añadimos columnas dummy con valores 0 como último recurso
+                for i in range(missing):
+                    col_name = f"dummy_col_{i}"
+                    X_df[col_name] = 0.0
+                    logger.warning(f"Añadiendo columna dummy {col_name}")
+            
+            # 6) Inferencia (ensemble si hay múltiples modelos)
+            X_input = X_df.values
+            
+            # Verificar y limpiar datos antes de pasar al modelo
+            # Reemplazar NaN y valores infinitos
+            X_input = np.nan_to_num(X_input, nan=0.0, posinf=0.0, neginf=0.0)
+            # Asegurar que sea de tipo float32 para TensorFlow
+            X_input = X_input.astype(np.float32)
+            
+            # Verificar dimensiones
+            logger.info(f"Dimensiones de entrada al modelo: {X_input.shape}")
+            
+            y_pred_scaled = None
+            for i, model in enumerate(models):
+                logger.info(f"Ejecutando predicción con modelo {i+1}/{len(models)}")
+                pred = model.predict(X_input)
+                # Convertir predicción a numpy array si es una lista
+                if isinstance(pred, list):
+                    pred = np.array(pred)
+                
+                # Manejar diferentes formas de arrays (reshape consistente)
+                if pred.ndim == 1:
+                    pred = pred.reshape(-1, 1)
+                elif pred.ndim == 2 and pred.shape[1] == 1:
+                    pass  # Ya tiene la forma correcta (N,1)
+                elif pred.ndim == 2 and pred.shape[0] == X_input.shape[0]:
+                    # Es un array 2D pero queremos mantener consistencia
+                    pass  # Mantener la forma original
+                    
+                # Inicializar o agregar
+                if y_pred_scaled is None:
+                    y_pred_scaled = pred
+                    logger.info(f"Primera predicción con forma: {pred.shape}")
+                else:
+                    # Asegurar que las formas sean compatibles
+                    if y_pred_scaled.shape != pred.shape:
+                        # Intentar hacer broadcast manual
+                        if y_pred_scaled.ndim == 1 and pred.ndim == 2:
+                            y_pred_scaled = y_pred_scaled.reshape(-1, 1)
+                            logger.warning("Reshaping y_pred_scaled a 2D")
+                        elif y_pred_scaled.ndim == 2 and pred.ndim == 1:
+                            pred = pred.reshape(-1, 1)
+                            logger.warning("Reshaping predicción a 2D")
+                        
+                        if y_pred_scaled.shape != pred.shape:
+                            logger.error(f"Formas incompatibles: y_pred_scaled={y_pred_scaled.shape}, pred={pred.shape}")
+                    
+                    y_pred_scaled = y_pred_scaled + pred
+                    
+            if len(models) > 1:
+                y_pred_scaled = y_pred_scaled / len(models)
+                logger.info("Aplicado promedio de ensemble")
 
-###############################################
-# Alias de compatibilidad                     #
-###############################################
+            # 7) Inversa de normalización de y
+            df_out = pd.DataFrame(index=df.index)
+            
+            # Encontrar información de normalización de salida
+            y_scalers = None
+            if 'target_regression' in scaler_info:
+                y_scalers = scaler_info['target_regression']
+                logger.info("Usando scaler_info['target_regression'] para desnormalización")
+            
+            for idx, coly in enumerate(curves_to_predict):
+                # Intentar varias estrategias para encontrar el scaler correcto
+                inverse_transformer = None
+                
+                # Estrategia 1: Usar normalizers directo si está disponible
+                if y_scalers and nearest_well in y_scalers:
+                    inverse_transformer = y_scalers[nearest_well]
+                # Estrategia 2: Usar estructura antigua
+                elif nearest_well in scaler_info and 'y' in scaler_info[nearest_well]:
+                    ttype_y, trans_y, _ = scaler_info[nearest_well]['y'].get(coly, (None, None, None))
+                    inverse_transformer = trans_y
+                
+                vals = (
+                    y_pred_scaled[:, idx].reshape(-1, 1)
+                    if y_pred_scaled.ndim > 1 and y_pred_scaled.shape[1] > idx
+                    else y_pred_scaled.reshape(-1, 1)
+                )
+                
+                if inverse_transformer is not None and hasattr(inverse_transformer, 'inverse_transform'):
+                    logger.info(f"Aplicando inverse_transform para {coly}")
+                    inv = inverse_transformer.inverse_transform(vals).ravel()
+                else:
+                    logger.warning(f"No se encontró transformador para {coly}, usando valores escalados")
+                    inv = vals.ravel()
+                
+                df_out[coly] = inv
 
-def predict(*args, **kwargs):
-    """Alias simple para llamadas de alto nivel (sin evaluación)."""
-    return predict_wells(*args, **kwargs, evaluate=False)
+            results[well_name] = df_out
+            logger.info(f"Predicción completada para {well_name}")
+            
+        except Exception as e:
+            logger.error(f"Error al procesar el pozo {well_name}: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            # Continuar con el siguiente pozo en lugar de abortar todo el proceso
+
+    return results

@@ -30,6 +30,13 @@ from sklearn.cluster import DBSCAN
 from scipy import stats
 from sklearn.neighbors import LocalOutlierFactor
 # from pandas.api.types import is_any_real_numeric_dtype
+import re
+import json
+import warnings
+from io import StringIO
+
+# Import RANDOM_SEED for reproducibility
+from src.neural_network.hyperparameters import RANDOM_SEED
 
 # region LASIO Supress stdout
 # SuppressOutput context manager
@@ -516,7 +523,7 @@ class ProjectManager:
             return []
         
         clean_data = data.reshape(-1, 1)
-        iso_forest = IsolationForest(contamination=contamination, random_state=42, n_jobs=1)
+        iso_forest = IsolationForest(contamination=contamination, random_state=RANDOM_SEED, n_jobs=1)
         preds = iso_forest.fit_predict(clean_data)
         outlier_indices = np.where(preds == -1)[0]
         return outlier_indices.tolist()

@@ -34,43 +34,82 @@ These factors necessitate a thoughtful approach to normalization. We need a stra
 ## Normalization Strategy
 Our normalization strategy is designed to balance the need for effective data preprocessing with the practical considerations of petroleum operations. We integrate our decisions into a cohesive approach as follows:
 
-### Column-Based Normalization Strategy
-Each column in the dataset is globally evaluated to determine the most appropriate normalization technique. This technique is then applied locally on a well-by-well basis, except in cases where low global variance is detected or when a signal acts as a well identifier.
+### Automatic Variance-Based Column Detection Strategy
+Our normalization pipeline implements an **automatic detection system** that eliminates the need for manual specification of global columns. Each column in the dataset is evaluated using a sophisticated per-well variance analysis to determine the most appropriate normalization approach.
 
-This approach ensures that each curve is treated consistently across all wells, respecting operational differences without compromising model consistency. By analyzing the characteristics of each feature globally but applying transformations locally, we maintain the integrity of well-specific patterns while enabling cross-well comparisons.
+This approach ensures that each curve is treated consistently across all wells, respecting operational differences without compromising model consistency. By analyzing the characteristics of each feature through individual well evaluation, we maintain the integrity of well-specific patterns while enabling cross-well comparisons.
 
-### Variance-Based Decision Rules
-For each column in our dataset, we apply specific rules based on variance analysis:
+### Per-Well Variance Evaluation with Failed Wells Ratio
+The core innovation of our strategy is the **per-well variance evaluation** system that determines column treatment based on individual well performance:
 
-- **Low Global Variance (< 1e-3)**: Columns with extremely low global variance are completely removed ('drop'). These features provide little to no information for the model and may introduce noise.
+**Algorithm Overview:**
+1. **Individual Well Assessment**: For each column, we evaluate the variance within each well individually after applying the appropriate transformation
+2. **Failed Wells Counting**: Wells where the transformed column has variance below the threshold (`var_threshold_perwell`) are counted as "failed"
+3. **Failed Wells Ratio Calculation**: The ratio of failed wells to total wells is calculated
+4. **Decision Based on Threshold**: If the failed wells ratio exceeds `min_failed_wells_ratio` (default: 0.5), the column becomes a global candidate
 
-- **Low Per-Well Variance but Varying Between Wells**: Columns that show low variance within individual wells but change significantly between wells are marked as 'global_static' and normalized once using a global_scaler. This preserves the between-well differences while standardizing the overall scale.
+**Key Parameters:**
+- `min_failed_wells_ratio`: Default 0.5 (50% of wells must fail for column to be global)
+- `var_threshold_perwell`: Variance threshold for individual well evaluation
+- `var_threshold_global`: Variance threshold for global column validation
 
-- **Sufficient Variability**: Columns with adequate variability are processed using the most appropriate technique (robust, power_robust, boxcox_robust) on a well-by-well basis. This allows for customized handling of each feature's distribution.
+This variance-based approach ensures that each feature is treated according to its statistical properties across the well population, optimizing the information it can provide to the model.
 
-This variance-based approach ensures that each feature is treated according to its statistical properties, optimizing the information it can provide to the model.
-
-The following table summarizes the decision rules implemented in our code:
+### Decision Rules and Implementation
+The following table summarizes the decision rules implemented in our automatic detection system:
 
 | Condition | Action Applied | Implementation |
 |-----------|----------------|----------------|
 | Global variance < 1e-3 | 'drop' | Feature is excluded from the dataset |
-| Low variance within wells but varying between wells | 'global_static' | Scaled once with global_scaler |
+| Failed wells ratio ≥ min_failed_wells_ratio | 'global' | Scaled once with global scaler |
+| Failed wells ratio < min_failed_wells_ratio | 'per-well' | Individual scaling per well using stored transformation type |
 | Contains negative values with skewness | 'power_robust' | Yeo-Johnson + RobustScaler pipeline |
 | Positive values with high skewness | 'boxcox_robust' | Box-Cox + RobustScaler pipeline |
 | Normal-like distribution | 'robust' | RobustScaler only |
 | Categorical data | 'categorical' | OrdinalEncoder applied |
 
-These transformer types directly correspond to the implementation in our codebase's `determine_global_transformer_types()` function and the transformation logic in `SimpleColumnTransformer`. This alignment between documentation and code ensures that the described strategy accurately reflects the actual implementation.
+These transformer types directly correspond to the implementation in our codebase's `fit_feature_scalers()` function and the transformation logic. This alignment between documentation and code ensures that the described strategy accurately reflects the actual implementation.
+
+### New Per-Well Strategy: Transformation Types vs Fitted Scalers
+A critical improvement in our new strategy is how we handle per-well columns:
+
+**Previous Approach (Deprecated):**
+- Stored fitted scalers for each well-column combination
+- Required extensive memory for scaler storage
+- Limited flexibility for new well prediction
+
+**New Approach (Current):**
+- Store only the **transformation type** ('robust', 'power_robust', 'boxcox_robust') for per-well columns
+- For each well (training or new), fit fresh scalers using the stored transformation type with that well's data
+- Dramatically reduces memory requirements and improves new well prediction accuracy
+
+**Benefits:**
+1. **Memory Efficiency**: Only transformation strategies are stored, not fitted objects
+2. **Better New Well Prediction**: Fresh scalers are fitted to new well's actual data distribution
+3. **Improved Accuracy**: Each well gets scalers optimized for its specific data characteristics
+4. **Simplified Pipeline**: Cleaner separation between strategy determination and scaler fitting
 
 ### Global vs Local Scaling
-Our normalization pipeline implements a dual-scaling approach:
+Our normalization pipeline implements a dual-scaling approach with automatic detection:
 
-- **Global Scaling**: Applied to columns like Well_ID, Latitude, Longitude, and columns identified as 'global_static'. The global_scaler is trained once using data from all wells, ensuring consistent treatment of these features across the entire dataset.
+- **Global Scaling**: Applied to columns automatically detected as having high failed wells ratios (≥ min_failed_wells_ratio). The global scaler is trained once using data from all wells, ensuring consistent treatment of these features across the entire dataset.
 
-- **Local Scaling**: Applied well by well to the remaining columns based on the selected technique. This preserves well-specific patterns while standardizing scales within each well.
+- **Local Scaling**: Applied well by well to columns with low failed wells ratios using stored transformation types. Fresh scalers are fitted for each well using the appropriate transformation strategy, preserving well-specific patterns while standardizing scales within each well.
 
-This separation allows us to balance between maintaining global context (important for geographic and static features) and respecting well-specific characteristics (critical for petrophysical measurements).
+This separation allows us to balance between maintaining global context (important for geographic and metadata features) and respecting well-specific characteristics (critical for petrophysical measurements).
+
+### Automatic Detection Results
+The automatic detection system typically identifies the following patterns:
+
+**Commonly Detected as Global:**
+- Latitude/Longitude coordinates (100% of wells usually fail variance threshold)
+- Well identifiers and metadata
+- Constant or near-constant geological markers
+
+**Commonly Detected as Per-Well:**
+- Petrophysical measurements (GR, SP, RHOB, resistivity logs, etc.)
+- Engineered features derived from well log curves
+- Formation-specific measurements
 
 ### Formation Encoding Strategy
 The 'Formation' column receives special treatment in our pipeline:
@@ -90,25 +129,18 @@ Some petrophysical logs contain negative values or exhibit skewed distributions.
 
 - **Combined Decision**: By addressing negative values and skewness within our normalization process, we improve the data's suitability for machine learning algorithms, which often perform better with normally distributed inputs.
 
-### Excluding Well Identifiers as Features
-Including well identifiers (like well names or IDs) as features in our models could introduce bias and hinder generalization. Our decision is to:
-
-- **Exclude Well Identifiers**: We do not include well identifiers as features in our models.
-
-- **Rationale**: New wells, which the model hasn't seen before, wouldn't have corresponding identifiers, making this feature unhelpful for prediction. By excluding well identifiers, we ensure the model focuses on the petrophysical measurements themselves.
-
-- **Operational Benefit**: This decision aligns with the practical need for models that can be applied to new wells without requiring well-specific adjustments or information.
-
-### Quality Controls
+### Quality Controls and Error Handling
 Our normalization pipeline includes several quality control mechanisms:
 
 - **NaN and Inf Validation**: Columns with NaN or Inf values after transformation are identified and addressed. The pipeline ensures that all normalized data is clean and usable.
 
-- **Low Variance Documentation**: Columns with low variance are documented, and their handling (exclusion or transformation) is tracked for transparency.
+- **Failed Wells Documentation**: The system tracks and logs which wells fail variance thresholds for each column, providing transparency in the decision-making process.
 
 - **Column Alignment**: The pipeline verifies that all wells have the same final columns before concatenation, ensuring consistency in the normalized dataset.
 
 - **Missing Data Handling**: The system gracefully handles missing curves, ensuring the pipeline doesn't break when certain measurements are absent in some wells.
+
+- **Fit Error Tracking**: All transformation failures are logged with detailed error information for debugging and quality assurance.
 
 These quality controls enhance the robustness of our normalization process, making it more reliable in production environments.
 
@@ -120,6 +152,8 @@ To ensure consistency and efficiency, we integrate our normalization steps and d
 - **Enhances Reproducibility**: Pipelines help in maintaining reproducibility, which is essential for validating models and comparing results across different runs or datasets.
 
 - **Improves Operational Efficiency**: In operational settings, pipelines streamline the workflow, making it easier to process large datasets typical in petroleum engineering.
+
+- **Eliminates Manual Intervention**: The automatic detection system removes the need for domain experts to manually specify which columns should be treated globally.
 
 By combining these decisions into an integrated strategy, we effectively address the challenges posed by our data's characteristics and operational considerations.
 
@@ -252,25 +286,27 @@ $x_{transformed} = \ln(x)$
 We may use logarithmic transformation for features where a logarithmic relationship is appropriate, but care must be taken since it cannot handle zero or negative values.
 
 ## Conclusion
-Normalization is a vital step in preparing petrophysical data for analysis and machine learning. By adopting a column-based normalization strategy with variance-based decision rules and appropriate handling of special features like Formation, we enhance the performance and generalizability of our models.
+Normalization is a vital step in preparing petrophysical data for analysis and machine learning. By adopting an **automatic variance-based detection strategy** with per-well evaluation and failed wells ratio thresholds, we have eliminated the need for manual specification of global columns while enhancing the performance and generalizability of our models.
 
-Our approach is influenced by the practical realities of petroleum operations, recognizing the variability inherent in data collected from different wells under varying conditions. By focusing on the data itself and applying suitable scaling methods, we develop models that are robust and applicable across a range of operational scenarios.
+Our approach is influenced by the practical realities of petroleum operations, recognizing the variability inherent in data collected from different wells under varying conditions. By implementing sophisticated per-well variance analysis and storing transformation strategies rather than fitted scalers, we develop models that are robust and applicable across a range of operational scenarios.
 
 Through this integrated strategy, we ensure that our data is ready for effective analysis, ultimately supporting better decision-making in petroleum exploration and production.
 
 ## Key Takeaways
-- **Column-Based Normalization**: Each feature is evaluated globally but normalized locally, balancing consistency with well-specific characteristics.
+- **Automatic Column Detection**: The new system eliminates manual specification of global columns through sophisticated per-well variance evaluation with configurable failed wells ratio thresholds.
 
-- **Variance-Based Decisions**: Features are processed differently based on their variance properties, ensuring optimal information extraction.
+- **Per-Well Variance Evaluation**: Individual well assessment provides more accurate column classification compared to aggregated variance analysis, ensuring optimal treatment for each feature.
 
-- **Global vs Local Scaling**: Different scaling approaches for well identifiers/static features versus petrophysical measurements optimize the balance between global context and local patterns.
+- **Transformation Strategy Storage**: Storing transformation types instead of fitted scalers dramatically improves memory efficiency and new well prediction accuracy.
 
-- **Formation Encoding**: Special handling ensures consistent representation of geological formations while gracefully managing unknown values.
+- **Failed Wells Ratio Threshold**: The configurable `min_failed_wells_ratio` parameter (default: 0.5) allows fine-tuning of the global vs per-well decision boundary based on dataset characteristics.
 
-- **Quality Controls**: Robust validation mechanisms ensure clean, consistent normalized data across all wells.
+- **Enhanced New Well Prediction**: Fresh scalers fitted to new well data using stored transformation strategies provide better prediction accuracy than pre-fitted scalers.
 
-- **Operational Realities Matter**: Consider the impact of logging tools, geological diversity, and operational conditions on your data preprocessing strategy.
+- **Robust Error Handling**: Comprehensive error tracking and fallback mechanisms ensure pipeline reliability in production environments.
 
-- **Consistency is Essential**: Integrating normalization into a processing pipeline ensures consistent application of preprocessing steps, supporting reproducibility and efficiency.
+- **Operational Realities Matter**: The system automatically adapts to logging tool variability, geological diversity, and operational conditions without manual intervention.
+
+- **Consistency Through Automation**: The automatic detection system ensures consistent application of normalization strategies across different datasets and operational scenarios.
 
 By understanding and implementing these principles and mathematical techniques, we can make the most of our petrophysical data, leading to more accurate models and better insights in our petroleum engineering endeavors.

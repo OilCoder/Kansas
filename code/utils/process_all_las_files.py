@@ -188,7 +188,20 @@ class LASFileProcessor:
 
     def standardize_curve_information(self, las):
         standardized_curves = []
-        for curve in las.curves:
+        for i, curve in enumerate(las.curves):
+            # Handle the first curve (depth) specially - always name it DEPT
+            if i == 0:
+                # Ensure first curve is always named DEPT
+                if curve.mnemonic.upper() in ['DEPT', 'DEPTH', 'MD', 'TVDSS']:
+                    curve.mnemonic = 'DEPT'
+                    # Preserve or set unit
+                    if not curve.unit or curve.unit.strip() == '':
+                        curve.unit = 'FT'
+                else:
+                    # If first curve is not depth-related, keep original but log warning
+                    pass
+            
+            # Handle mnemonic and unit separation for all curves
             parts = curve.mnemonic.split()
             if len(parts) > 1:
                 curve.mnemonic = parts[0]
@@ -198,6 +211,11 @@ class LASFileProcessor:
                     curve.mnemonic, curve.unit = curve.mnemonic.split('.', 1)
                 elif ' ' in curve.mnemonic:
                     curve.mnemonic, curve.unit = curve.mnemonic.split(' ', 1)
+            
+            # Apply DEPT standardization again after splitting (in case it was "DEPTH.FT")
+            if i == 0 and curve.mnemonic.upper() in ['DEPT', 'DEPTH', 'MD', 'TVDSS']:
+                curve.mnemonic = 'DEPT'
+                
             standardized_curves.append(curve)
         las.curves = standardized_curves
         return las

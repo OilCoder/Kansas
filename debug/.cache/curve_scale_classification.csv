@@ -1,0 +1,16 @@
+Curve,Classification,Known_Percentage_Curve,Safe_For_Auto_Correction,Needs_Manual_Review
+CILD,CONSISTENT,False,False,False
+CNLS,MIXED_SCALES,True,False,True
+DPOR,RANGE_INCONSISTENT,True,False,True
+DT,CONSISTENT,False,False,False
+GR,CONSISTENT,False,False,False
+MI,MIXED_SCALES,False,False,True
+MN,MIXED_SCALES,False,False,True
+RHOB,CONSISTENT,False,False,False
+RHOC,CONSISTENT,False,False,False
+RILD,CONSISTENT,False,False,False
+RILM,RANGE_INCONSISTENT,False,False,True
+RLL3,CONSISTENT,False,False,False
+RXORT,CONSISTENT,False,False,False
+SP,CONSISTENT,False,False,False
+SPOR,RANGE_INCONSISTENT,True,False,True

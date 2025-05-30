@@ -4,11 +4,18 @@ import numpy as np
 import sys
 import os
 import random
+import pytest
+from typing import Dict, List
 
 # Add the code/src directory to the path so we can import the module
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'code')))
 
 from src.data_preprocessing.split_data import split_wells_by_prediction
+from src.neural_network.hyperparameters import RANDOM_SEED
+
+# Set random seeds for reproducibility
+random.seed(RANDOM_SEED)
+np.random.seed(RANDOM_SEED)
 
 class TestSplitWells(unittest.TestCase):
     
@@ -16,10 +23,6 @@ class TestSplitWells(unittest.TestCase):
         """
         Create simulated well data for testing.
         """
-        # Set random seed for reproducibility
-        random.seed(42)
-        np.random.seed(42)
-        
         # Create simulated well data
         self.well_data = {}
         
@@ -99,7 +102,7 @@ class TestSplitWells(unittest.TestCase):
                 self.well_data, 
                 self.curves_to_predict, 
                 min_curves=5, 
-                random_seed=42
+                random_seed=RANDOM_SEED
             )
         
         # Check that we have the correct number of wells in each set
@@ -152,7 +155,7 @@ class TestSplitWells(unittest.TestCase):
                 small_data, 
                 self.curves_to_predict, 
                 min_curves=5, 
-                random_seed=42
+                random_seed=RANDOM_SEED
             )
     
     def test_different_min_curves(self):
@@ -165,7 +168,7 @@ class TestSplitWells(unittest.TestCase):
                 self.well_data, 
                 self.curves_to_predict, 
                 min_curves=3, 
-                random_seed=42
+                random_seed=RANDOM_SEED
             )
         
         # Well_10 might still be discarded because even though it has 3 curves,
@@ -195,7 +198,7 @@ class TestSplitWells(unittest.TestCase):
                 self.well_data, 
                 ['CNLS'], 
                 min_curves=5, 
-                random_seed=42
+                random_seed=RANDOM_SEED
             )
         
         # Well_07 should now be valid (it has CNLS but not RHOC)
@@ -211,6 +214,15 @@ class TestSplitWells(unittest.TestCase):
         print(f"Train/Validation wells: {len(train_validation_data)}")
         print(f"External Test wells: {len(external_test_data)}")
         print(f"Discarded wells: {len(discarded_wells)}")
+
+    def test_basic_split(self):
+        """Test basic functionality of split_wells_by_prediction."""
+        train_data, test_data, discarded, _ = split_wells_by_prediction(
+            self.well_data, 
+            curves_to_predict=['CNLS'], 
+            min_curves=3, 
+            random_seed=RANDOM_SEED
+        )
 
 if __name__ == '__main__':
     unittest.main() 

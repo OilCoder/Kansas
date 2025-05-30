@@ -1,6 +1,6 @@
 import os
 import sys
-import pytest
+import unittest
 import pandas as pd
 import numpy as np
 import time
@@ -9,20 +9,11 @@ from typing import Dict, List, Tuple
 # Add the parent directory to path so we can import the modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Try different import approaches to handle both direct execution and pytest
-try:
-    # When running with pytest from project root
-    from code.src.data_preprocessing.feature_engineering import generate_features, _impute_local
-except ImportError:
-    try:
-        # When running directly
-        import code.src.data_preprocessing.feature_engineering as module
-        generate_features = module.generate_features
-        _impute_local = module._impute_local
-    except ImportError:
-        # Fallback to direct import
-        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../code')))
-        from src.data_preprocessing.feature_engineering import generate_features, _impute_local
+# Add the code/src directory to the path so we can import the module
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'code')))
+
+from src.data_preprocessing.feature_engineering import generate_features, _impute_local
+from src.neural_network.hyperparameters import RANDOM_SEED
 
 # Helper functions for testing
 def preprocess_for_clustering(df: pd.DataFrame) -> pd.DataFrame:
@@ -49,7 +40,7 @@ def create_synthetic_wells(num_wells: int = 4,
                            num_samples: int = 100,
                            curves: List[str] = None,
                            add_na: bool = True,
-                           seed: int = 42) -> Dict[str, pd.DataFrame]:
+                           seed: int = RANDOM_SEED) -> Dict[str, pd.DataFrame]:
     """Create synthetic well data for testing."""
     np.random.seed(seed)
     
@@ -600,33 +591,35 @@ def test_extreme_values():
 
 def test_determinism():
     """
-    Test that with fixed random_state, results are deterministic.
+    Test that the function produces deterministic results with fixed random_state.
     """
-    # Create test data without NaNs
-    wells = create_synthetic_wells(num_wells=2, num_samples=30, add_na=False)
+    # Create test data
+    wells = create_synthetic_wells(num_wells=2, num_samples=50, add_na=False)
     selected_curves = ['GR', 'RHOB', 'RILD', 'RHOC']
     curves_to_predict = ['RHOC']
     
-    # Run feature engineering twice with same random_state y parámetros simplificados
-    start_time = time.time()
+    # Run twice with same random_state
+    np.random.seed(RANDOM_SEED)  # For reproducibility
     engineered1, feature_info1, final_cols1 = generate_features(
         wells, 
         selected_curves, 
-        curves_to_predict, 
-        random_state=42,
-        var_threshold=None,  # Deshabilitar filtrado por varianza
-        num_clusters=5       # Reducir clústeres para evitar problemas
+        curves_to_predict,
+        var_threshold=None,
+        num_clusters=3,
+        use_boruta=False,
+        random_state=RANDOM_SEED,
     )
     
+    np.random.seed(RANDOM_SEED)  # Reset seed
     engineered2, feature_info2, final_cols2 = generate_features(
         wells, 
         selected_curves, 
-        curves_to_predict, 
-        random_state=42,
-        var_threshold=None,  # Deshabilitar filtrado por varianza
-        num_clusters=5       # Reducir clústeres para evitar problemas
+        curves_to_predict,
+        var_threshold=None,
+        num_clusters=3,
+        use_boruta=False,
+        random_state=RANDOM_SEED,
     )
-    execution_time = time.time() - start_time
     
     # Compare results
     cols_match = final_cols1 == final_cols2
@@ -648,8 +641,6 @@ def test_determinism():
         if not data_match:
             print(f"❌ Generated data differs between runs.")
         print(f"❌ Test failed: Function is not deterministic.")
-    
-    print(f"ℹ️ Execution time: {execution_time:.2f} seconds")
     
     assert cols_match, "Feature columns should be identical with same random_state"
     assert data_match, "Generated data should be identical with same random_state"
@@ -701,7 +692,7 @@ def test_missing_curves_handling():
     """
     # Create wells with different available curves but no NaNs
     wells = {}
-    np.random.seed(42)  # For reproducibility
+    np.random.seed(RANDOM_SEED)  # For reproducibility
     
     # Well 1: Has all curves
     wells['WELL_01'] = pd.DataFrame({
@@ -759,63 +750,6 @@ def test_missing_curves_handling():
     
     assert wells_processed == expected_wells, "All wells should be processed regardless of optional missing curves"
 
-def run_all_tests():
-    """Run all tests with proper formatting."""
-    print("=== Running Feature Engineering Tests ===")
-    
-    tests = [
-        test_basic_output,               # 1. Prueba básica de salida
-        test_column_consistency,         # 2. Consistencia de columnas
-        test_feature_info_types,         # 3. Información de tipos de features
-        test_local_imputation,           # 4. Imputación local de NaN
-        test_variance_filtering,         # 5. Filtrado por varianza
-        test_mandatory_columns,          # 6. Columnas obligatorias
-        test_categorical_validity,       # 7. Validación de categorías
-        test_extreme_values,             # 8. Valores extremos
-        test_determinism,                # 9. Determinismo
-        test_performance,                # 10. Rendimiento
-        test_missing_curves_handling     # 11. Manejo de curvas faltantes
-    ]
-    
-    passed = 0
-    failed = 0
-    
-    # Ejecutar cada prueba con mejor manejo de errores
-    for i, test in enumerate(tests, 1):
-        print(f"\n{'='*50}")
-        print(f" PRUEBA {i}: {test.__name__}")
-        print(f"{'='*50}")
-        try:
-            test()
-            print(f"\n✅ {test.__name__} COMPLETADO EXITOSAMENTE")
-            passed += 1
-        except Exception as e:
-            print(f"\n❌ {test.__name__} FALLÓ: {str(e)}")
-            # Mostrar más detalles del error para depuración
-            import traceback
-            traceback.print_exc()
-            failed += 1
-        
-        # Pequeña pausa para que sea más fácil ver dónde termina cada test
-        print("\n")
-    
-    # Resumen final
-    print("\n=== Feature Engineering Test Summary ===")
-    print(f"✅ Pasadas: {passed} pruebas")
-    print(f"❌ Fallidas: {failed} pruebas")
-    if failed == 0:
-        print(f"✅ ÉXITO: Todas las {passed} pruebas completadas exitosamente.")
-    else:
-        print(f"❌ FALLO: {failed} de {passed + failed} pruebas fallaron.")
-        # Mostrar cuáles fallaron
-        print("\nPruebas fallidas:")
-        for i, test in enumerate(tests, 1):
-            try:
-                test()
-                continue
-            except Exception:
-                print(f"  {i}. {test.__name__}")
-
 def test_no_duplicate_columns():
     """
     Test that no DataFrame returned by generate_features has duplicated column names.
@@ -850,30 +784,21 @@ def test_no_duplicate_columns():
     
     assert not duplicated_columns, "No DataFrame should contain duplicated columns"
 
-
 if __name__ == "__main__":
-    # Ejecutar una prueba específica para depuración
-    if len(sys.argv) > 1:
-        test_name = sys.argv[1]
-        test_functions = {func.__name__: func for func in [
-            test_basic_output, test_column_consistency, test_feature_info_types,
-            test_local_imputation, test_variance_filtering, test_mandatory_columns,
-            test_categorical_validity, test_extreme_values, test_determinism,
-            test_performance, test_missing_curves_handling, test_no_duplicate_columns
-        ]}
-        
-        if test_name in test_functions:
-            print(f"Ejecutando prueba específica: {test_name}")
-            try:
-                test_functions[test_name]()
-                print(f"\n✅ {test_name} COMPLETADO EXITOSAMENTE")
-            except Exception as e:
-                print(f"\n❌ {test_name} FALLÓ: {str(e)}")
-                import traceback
-                traceback.print_exc()
-        else:
-            print(f"Prueba no encontrada: {test_name}")
-            print(f"Pruebas disponibles: {', '.join(test_functions.keys())}")
-    else:
-        # Ejecutar todas las pruebas
-        run_all_tests()
+    # Run specific test functions
+    test_functions = [
+        test_basic_output, test_column_consistency, test_feature_info_types,
+        test_local_imputation, test_variance_filtering, test_mandatory_columns,
+        test_categorical_validity, test_extreme_values, test_determinism,
+        test_performance, test_missing_curves_handling, test_no_duplicate_columns
+    ]
+    
+    for test_func in test_functions:
+        try:
+            print(f"\nRunning {test_func.__name__}...")
+            test_func()
+            print(f"✅ {test_func.__name__} passed")
+        except Exception as e:
+            print(f"❌ {test_func.__name__} failed: {e}")
+            import traceback
+            traceback.print_exc()

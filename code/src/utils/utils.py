@@ -3,8 +3,14 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Suppress INFO and WARNING messages
 
 import logging
 import warnings
+
+# IMPORTANT: Initialize GPU environment BEFORE importing TensorFlow
+import src.utils.initialize_gpu
+
 import tensorflow as tf
 
+# Import RANDOM_SEED for reproducibility
+from src.neural_network.hyperparameters import RANDOM_SEED
 
 class PrettyFormatter(logging.Formatter):
     """Custom formatter with colors and step highlighting"""
@@ -132,14 +138,14 @@ def configure_logging(log_file='src/neural_network/files/neural_network.log'):
     logger = logging.getLogger(__name__)
     logger.info("Logging configured with pretty format")
 
-def set_random_seed(seed=None):
+def set_random_seed(seed=RANDOM_SEED):
     """
     Sets the random seed for reproducibility.
 
     Parameters:
     -----------
     seed : int, optional
-        The seed value to use (default is 42).
+        The seed value to use (default is RANDOM_SEED from hyperparameters).
 
     Returns:
     --------
