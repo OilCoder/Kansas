@@ -106,7 +106,7 @@ NUM_STATISTICAL_DESCRIPTORS = 5  # mean, std, min, max, median
 # Constants for: model.py, optimizer.py
 # ----------------------------------------------------------------------------------
 # Optimization hyperparameters
-OPTIM_N_TRIALS = 10            # Number of optimization trials
+OPTIM_N_TRIALS = 1            # Number of optimization trials
 OPTIM_TOP_TRIALS = 2            # Number of top configurations to select
 N_JOBS_GPU = 8                  # Number of parallel jobs running on GPU (reduced for stability)
 

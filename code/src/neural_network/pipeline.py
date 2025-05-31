@@ -318,8 +318,8 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
             well_descriptors, target_scalers, formation_encoder, unknown_index, 
             normalizers, fit_errors,
         top_configs, study,                                                         # Step 4
-        best_config, cv_results, best_model,                                        # Step 5
-        model, history,                                                             # Step 6
-        predictions,                                                                # Step 7
+        # best_config, cv_results, best_model,                                        # Step 5
+        # model, history,                                                             # Step 6
+        # predictions,                                                                # Step 7
         )
 
