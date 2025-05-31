@@ -196,7 +196,7 @@ def fit_feature_scalers(
         all_values = all_values[all_values != 'unknown']  # exclude placeholder
         classes = sorted(all_values.unique())
         encoder = LabelEncoder().fit(classes)
-        unknown_index = len(classes)
+        unknown_index = -1
         categorical_encoders[col] = (encoder, unknown_index)
         final_columns.append(col)
 
@@ -436,7 +436,7 @@ def prepare_and_normalize_data(
     all_formations = pd.concat([df['Formation'].astype(str) for df in engineered_data.values()])
     classes = sorted([formation for formation in all_formations.unique() if formation != 'unknown'])
     formation_encoder = LabelEncoder().fit(classes)
-    unknown_index = len(classes)
+    unknown_index = -1
     y_classification = {well_name: np.array([
         unknown_index if value == 'unknown' else formation_encoder.transform([value])[0]
         for value in df['Formation'].astype(str).values

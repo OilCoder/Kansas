@@ -27,6 +27,7 @@ from src.utils.optimizer_export_journal_to_sqlite import export_journal_to_sqlit
 from src.data_preprocessing.split_data import split_wells_by_prediction, plot_classification_matrix
 from src.data_preprocessing.feature_engineering import generate_features
 from src.data_preprocessing.normalization import prepare_and_normalize_data
+from src.data_preprocessing.consistency_corrector import correct_data_consistency
 
 # Local imports - neural network
 from src.neural_network.optimizer import optimize_hyperparameters
@@ -119,11 +120,25 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
     for directory in directories:
         logger.info(f"  - {os.path.basename(directory)}: {directory}")
 
+    ################################## Step 0.5: Data Consistency Correction ##################################
+
+    logger.info("Step 0.5: Correcting data consistency issues...")
+    
+    # Apply consistency corrections to ALL data before splitting
+    data_corrected, correction_report = correct_data_consistency(data)
+    
+    # Log correction summary
+    logger.info("Data consistency correction completed:")
+    logger.info("Correction Report:")
+    for line in correction_report.split('\n'):
+        if line.strip():
+            logger.info(f"    {line}")
+
     ################################## Step 1: Data Loading and Preprocessing ##################################
 
     logger.info("Step 1: Splitting data into train/validation and external test sets...")
     train_validation_data, external_test_data, discarded_wells, _ = split_wells_by_prediction(
-        data, curves_to_predict, min_curves=MIN_CURVES, random_seed=RANDOM_SEED
+        data_corrected, curves_to_predict, min_curves=MIN_CURVES, random_seed=RANDOM_SEED
     )
 
     # Detailed split information
@@ -150,7 +165,7 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
     logger.info("Step 2: Generating engineered features...")
 
     engineered_data, feature_info, final_cols = generate_features(
-        train_validation_data, 
+        train_validation_data,  # Now using data that was already corrected
         selected_curves, 
         curves_to_predict, 
         window_size=ROLLING_WINDOW_SIZE, 
@@ -195,16 +210,21 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
 
     ################################## Step 4: Hyperparameter Optimization ##################################
 
-    # Determinar número de clases válidas para clasificación (excluyendo la clase unknown)
+    # Determinar número de clases válidas para clasificación
+    # Con unknown_index = -1, necesitamos contar las clases válidas (0, 1, 2, ...) + 1 para unknown
     all_classes = y_scaled['Formation'].unique()
-    classification_output_shape = len([cls for cls in all_classes if cls != unknown_index]) + 1
-    train_task = 'regression'
+    valid_classes = [cls for cls in all_classes if cls != unknown_index]  # Excluir -1
+    classification_output_shape = len(valid_classes) + 1  # +1 para la clase unknown (-1)
+    
+    logger.info(f"    Unknown index set to: {unknown_index}")
+    logger.info(f"    Valid formation classes: {sorted(valid_classes)}")
+    logger.info(f"    Classification output shape: {classification_output_shape}")
 
     # Step 4: Initial Hyperparameter Optimization with user-configured task
     logger.info(f"Step 4: Starting hyperparameter optimization for task: {train_task}")
     
     # Llamar al optimizer ultra-estable con los parámetros correctos
-    top_configs, study  = optimize_hyperparameters(
+    top_configs, study = optimize_hyperparameters(
         X=X_scaled,
         y=y_scaled,
         unknown_index=unknown_index,
@@ -230,68 +250,76 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
     # logger.info(f"Successfully exported Optuna journal to SQLite database at {sqlite_path}")
     logger.info(f"    Optuna studies saved in separate journal files for each phase")
 
-    # ################################## Step 5: Cross-Validation of Top Configs ##################################
-    # logger.info("Step 5: Validating top configurations with K-Fold cross-validation...")
+    ################################## Step 5: Cross-Validation of Top Configs ##################################
+    logger.info("Step 5: Validating top configurations with K-Fold cross-validation...")
 
-    # # Llamada con wrapper y nuevos argumentos
-    # best_config, cv_results, best_model = cross_validation(
-    #     X=X_scaled, 
-    #     y=y_scaled, 
-    #     top_configs=top_configs, 
-    #     unknown_index=unknown_index, 
-    #     classification_output_shape=classification_output_shape,
-    #     train_task=train_task,
-    #     save_path=os.path.join(current_dir, 'model/cross_validation'),
-    # )
+    # Llamada con wrapper y nuevos argumentos
+    best_config, cv_results, best_model = cross_validation(
+        X=X_scaled, 
+        y=y_scaled, 
+        top_configs=top_configs, 
+        unknown_index=unknown_index, 
+        classification_output_shape=classification_output_shape,
+        train_task=train_task,
+        save_path=os.path.join(current_dir, 'model/cross_validation'),
+    )
 
-    # print_config_metrics(best_config)
+    print_config_metrics(best_config)
     
-    # ################################## Step 6: Final Training ##################################
-    # logger.info("Step 6: Final Training with best hyperparams")
+    ################################## Step 6: Final Training ##################################
+    logger.info("Step 6: Final Training with best hyperparams")
 
-    # # Reconstruye el dict de hiperparámetros
-    # best_config = reconstruct_full_hyperparams(best_config['config'])    
+    # Reconstruye el dict de hiperparámetros
+    best_config = reconstruct_full_hyperparams(best_config['config'])    
 
-    # models, histories = final_train(
-    #     X_scaled=X_scaled,
-    #     y_scaled=y_scaled,
-    #     best_config_result=best_config,
-    #     classification_output_shape=classification_output_shape,
-    #     unknown_index=unknown_index,
-    #     save_dir=os.path.join(current_dir, 'model/final_train'),
-    #     n_splits=CV_SPLITS,
-    #     random_state=RANDOM_SEED,
-    #     train_task=train_task
-    # )
+    model, history, final_loss, model_path = final_train(
+        X_scaled=X_scaled,
+        y_scaled=y_scaled,
+        best_config_result=best_config,
+        classification_output_shape=classification_output_shape,
+        unknown_index=unknown_index,
+        save_dir=os.path.join(current_dir, 'model/final_train'),
+        train_task=train_task,
+        max_epochs=500,
+        random_state=RANDOM_SEED
+    )
     
-    # logger.info("Final training completed. Model and normalizer have been saved.")
+    logger.info("Final training completed. Model and normalizer have been saved.")
 
-    # ################################## Step 7: Evaluate ##################################
-    # logger.info("Step 7: Evaluating external test set")
+    ################################## Step 7: Evaluate ##################################
+    logger.info("Step 7: Evaluating external test set")
 
-    # from src.neural_network.predict import predict_wells
+    from src.neural_network.predict import predict_wells
 
-    # predictions = predict_wells(
-    #     wells_data        = external_test_data,
-    #     models            = models,
-    #     feature_info      = feature_info,
-    #     selected_curves   = selected_curves,
-    #     final_cols        = final_cols,
-    #     global_scaler     = global_scaler,
-    #     global_columns    = global_columns,  # Use automatically detected global columns
-    #     scaler_info       = scaler_info,
-    #     well_desc         = well_desc,
-    #     curves_to_predict = curves_to_predict
-    # )
+    predictions = predict_wells(
+        wells_data=external_test_data,
+        model_path=model_path,
+        selected_curves=selected_curves,
+        curves_to_predict=curves_to_predict,
+        per_well_strategies=per_well_strategies,
+        global_feature_scalers=global_feature_scalers,
+        categorical_encoders=categorical_encoders,
+        feature_columns=feature_columns,
+        global_columns=global_columns,
+        well_descriptors=well_descriptors,
+        target_scalers=target_scalers,
+        train_task=train_task
+    )
 
     logger.info("Predictions on external wells completed.")
 
     # Return all the important data structures needed for the next steps
-    return (train_validation_data, external_test_data, engineered_data, feature_info, final_cols,       # Step 2 - Feature Engineering
-        X_scaled,y_scaled, per_well_strategies, global_feature_scalers, categorical_encoders, column_types, feature_columns, global_columns, well_descriptors, target_scalers, formation_encoder, unknown_index, normalizers, fit_errors,           # Step 3 - Normalization
-        top_configs, study ,                                                                             # Step 4 - Optuna
-        # best_config, cv_results, best_model,                                      # Step 5 - CV
-        # models, histories,                                             # Step 6 - Final Train
-
+    return (
+        data_corrected, correction_report,                                          # Step 0.5
+        train_validation_data, external_test_data, discarded_wells,                 # Step 1
+        engineered_data, feature_info, final_cols,                                  # Step 2 
+        X_scaled, y_scaled, per_well_strategies, global_feature_scalers,            # Step 3
+            categorical_encoders, column_types, feature_columns, global_columns, 
+            well_descriptors, target_scalers, formation_encoder, unknown_index, 
+            normalizers, fit_errors,
+        top_configs, study,                                                         # Step 4
+        best_config, cv_results, best_model,                                        # Step 5
+        model, history,                                                             # Step 6
+        predictions,                                                                # Step 7
         )
 

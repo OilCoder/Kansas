@@ -70,21 +70,16 @@ def objective(trial, X, y, unknown_index, classification_output_shape, train_tas
             loss_str = f"{metric_value:.4f}".replace('.', '')  # 0.4179 -> 04179
             model_folder_name = f"trial_{trial.number:03d}_{task_abbrev}_{loss_str}"
             
-            # Path completo del modelo
-            versioned_model_path = os.path.join(os.path.dirname(best_model_base_path), model_folder_name)
+            # Path completo del modelo en subcarpeta optuna_trials
+            optuna_trials_dir = os.path.join(os.path.dirname(best_model_base_path), 'optuna_trials')
+            os.makedirs(optuna_trials_dir, exist_ok=True)
+            versioned_model_path = os.path.join(optuna_trials_dir, model_folder_name)
             
             # Guardar el modelo en su carpeta única
             model.save(versioned_model_path)
             
-            # También actualizar el "best_model" actual (para compatibilidad)
-            if os.path.exists(best_model_base_path):
-                import shutil
-                shutil.rmtree(best_model_base_path)
-            import shutil
-            shutil.copytree(versioned_model_path, best_model_base_path)
-            
             print(f"🎯 Nuevo mejor modelo: {metric_value:.6f} (Trial {trial.number})")
-            print(f"💾 Guardado en: {model_folder_name}")
+            print(f"💾 Guardado en: optuna_trials/{model_folder_name}")
 
         del model
         gc.collect()
@@ -130,11 +125,11 @@ def optimize_hyperparameters(X, y, unknown_index, classification_output_shape, t
     top_configs = [trial.params for trial in best_trials]
     
     # Mostrar todos los modelos guardados
-    model_dir = os.path.join(current_dir, 'model')
-    if os.path.exists(model_dir):
-        saved_models = [d for d in os.listdir(model_dir) if d.startswith('trial_') and os.path.isdir(os.path.join(model_dir, d))]
+    optuna_trials_dir = os.path.join(current_dir, 'model', 'optuna_trials')
+    if os.path.exists(optuna_trials_dir):
+        saved_models = [d for d in os.listdir(optuna_trials_dir) if d.startswith('trial_') and os.path.isdir(os.path.join(optuna_trials_dir, d))]
         if saved_models:
-            print(f"\n📁 Modelos guardados ({len(saved_models)}):")
+            print(f"\n📁 Modelos de Optuna guardados ({len(saved_models)}):")
             # Ordenar por loss (extraer del nombre)
             def extract_loss(model_name):
                 try:
@@ -147,14 +142,16 @@ def optimize_hyperparameters(X, y, unknown_index, classification_output_shape, t
             saved_models.sort(key=extract_loss)
             for i, model_name in enumerate(saved_models[:5]):  # Mostrar top 5
                 loss_val = extract_loss(model_name)
-                print(f"   {i+1}. {model_name} (loss: {loss_val:.6f})")
+                print(f"   {i+1}. optuna_trials/{model_name} (loss: {loss_val:.6f})")
             if len(saved_models) > 5:
-                print(f"   ... y {len(saved_models) - 5} más")
+                print(f"   ... y {len(saved_models) - 5} más en optuna_trials/")
+    else:
+        print(f"\n📁 No se encontraron modelos de Optuna en optuna_trials/")
     
     # Resumen final
     print(f"\n📊 Optimización completada:")
     print(f"   Mejor métrica: {best_metric[0]:.6f}")
     print(f"   Trials válidos: {len(valid_trials)}/{len(study.trials)}")
-    print(f"   Modelo actual guardado en: {best_model_path}")
+    print(f"   Mejores modelos guardados en: optuna_trials/")
     
     return top_configs, study 

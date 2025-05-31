@@ -203,14 +203,18 @@ def cross_validate_top_configs_refactor(
 
         for fold, (train_idx, val_idx) in enumerate(tqdm(kf.split(X_np), desc=f"Config {config_idx+1} - Folds", total=CV_SPLITS), start=1):
             X_train, X_val = X_np[train_idx], X_np[val_idx]
-            y_train = {
-                'regression_output': y_reg_all[train_idx],
-                'classification_output': y_clf_all[train_idx]
-            }
-            y_val = {
-                'regression_output': y_reg_all[val_idx],
-                'classification_output': y_clf_all[val_idx]
-            }
+            
+            # Prepare y_train and y_val based on train_task
+            y_train = {}
+            y_val = {}
+            
+            if train_task in ('regression', 'both'):
+                y_train['regression_output'] = y_reg_all[train_idx]
+                y_val['regression_output'] = y_reg_all[val_idx]
+            
+            if train_task in ('classification', 'both'):
+                y_train['classification_output'] = y_clf_all[train_idx]
+                y_val['classification_output'] = y_clf_all[val_idx]
 
             tf.keras.backend.clear_session()
 

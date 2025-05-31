@@ -26,3 +26,18 @@ zip_files/*
 !zip_files/Arroyo.zip
 !zip_files/Burrton.zip
 !zip_files/Cooper.zip
+
+# Neural Network Model Directories
+# Ignore all model subdirectories except final_train and results
+code/src/neural_network/model/*
+!code/src/neural_network/model/final_train/
+code/src/neural_network/files/
+code/src/neural_network/model/best_model_regression/
+code/src/neural_network/model/cross_validation/
+code/src/neural_network/model/optuna_trials/
+
+# Keep results folder (for CSV logs and predictions)
+!code/src/neural_network/results/
+
+# Debug folder - ignore everything
+debug/

@@ -1,0 +1,38 @@
+{
+    "best_config": {
+        "num_layers": 7,
+        "units_layer_1": 512,
+        "units_layer_2": 768,
+        "units_layer_3": 32,
+        "units_layer_4": 256,
+        "units_layer_5": 64,
+        "units_layer_6": 32,
+        "units_layer_7": 64,
+        "activation_early": "tanh",
+        "activation_late": "selu",
+        "dropout_rate": 0.1,
+        "optimizer": "nadam",
+        "learning_rate": 0.0028231532110386433,
+        "batch_size": 64,
+        "l1_reg": 4.076306580532339e-07,
+        "l2_reg": 1.0637403880942385e-07,
+        "clipnorm": 2.6984138623579463,
+        "units_per_layer": [
+            512,
+            768,
+            32,
+            256,
+            64,
+            32,
+            64
+        ]
+    },
+    "train_task": "regression",
+    "final_loss": 0.08720486611127853,
+    "epochs_trained": 100,
+    "training_samples": 25426,
+    "used_full_dataset": true,
+    "classification_output_shape": 14,
+    "unknown_index": -1,
+    "random_state": 42
+}
