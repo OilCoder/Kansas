@@ -1,3 +1,5 @@
+"""Exports Optuna optimization results from journal files to SQLite databases. Filters successful trials, creates relational tables with parameters and metrics, generates summary reports, and enables efficient querying of hyperparameter search results."""
+
 import os
 import sqlite3
 import pandas as pd

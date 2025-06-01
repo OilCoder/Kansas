@@ -1,9 +1,5 @@
 """
-Data Consistency Corrector
-=========================
-
-Module for correcting porosity scale consistency issues in well log data.
-Converts DPOR, SPOR, and CNLS from percentage scale (0-100) to decimal scale (0-1).
+Corrects porosity scale inconsistencies in well log data. Automatically detects and converts DPOR, SPOR, and CNLS curves from percentage scale (0-100) to decimal scale (0-1) when needed.
 """
 
 import pandas as pd

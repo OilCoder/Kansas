@@ -1,3 +1,5 @@
+"""Performs cross-validation on top hyperparameter configurations to select optimal models. Implements task-specific composite scoring, prediction quality assessment, and robust model selection with comprehensive performance evaluation and validation."""
+
 import os
 import json
 import numpy as np

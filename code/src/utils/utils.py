@@ -1,3 +1,5 @@
+"""Provides core utility functions for logging configuration and reproducible random seed management. Implements custom formatted logging with step highlighting and comprehensive warning suppression for clean neural network pipeline execution."""
+
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Suppress INFO and WARNING messages
 

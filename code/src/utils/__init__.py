@@ -1,6 +1,4 @@
-"""
-Utilities module for GPU management, memory optimization and other helper functions.
-"""
+"""Utilities module providing GPU management, memory optimization, plotting functions, and optimization support tools. Centralizes helper functions for neural network training, visualization, and hyperparameter optimization workflows."""
 
 # Import and expose the GPU environment configuration function
 # This should be imported and called before any TensorFlow operations

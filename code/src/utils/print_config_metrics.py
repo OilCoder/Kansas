@@ -1,3 +1,5 @@
+"""Formats and displays hyperparameter configuration results with cross-validation metrics. Creates formatted tables showing mean and standard deviation values for easy interpretation of model performance across folds."""
+
 from tabulate import tabulate
 
 def print_config_metrics(best_config_result):

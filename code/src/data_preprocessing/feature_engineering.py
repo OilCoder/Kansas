@@ -1,3 +1,6 @@
+"""
+Generates advanced petrophysical features from well log curves. Creates statistical, spectral, clustering, and geological features including RQI, porosity classes, water saturation, and multi-scale analysis using signal processing techniques.
+"""
 import logging
 from typing import Dict, List, Tuple
 

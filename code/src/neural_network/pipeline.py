@@ -1,3 +1,5 @@
+"""Orchestrates complete neural network training pipeline from data preprocessing to model evaluation. Integrates feature engineering, normalization, hyperparameter optimization, cross-validation, and final training for well log analysis tasks."""
+
 # Standard library imports
 import os
 import logging
@@ -102,23 +104,27 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
 
     logger.info("Step 0: Setting up execution environment")
 
-    # Configure project directories and logging system
+    # Configure project directories and logging system with task-specific structure
     current_dir = os.path.dirname(__file__)
+
+    # Create task-specific directory structure
+    task_base_dir = os.path.join(current_dir, train_task)
     directories = [
-        os.path.join(current_dir, 'files'),      # For logs and Optuna study
-        os.path.join(current_dir, 'model'),      # For saving models and preprocessors
-        os.path.join(current_dir, 'results'),    # For plots and metrics logs
+        os.path.join(task_base_dir, 'files'),      # For logs and Optuna study
+        os.path.join(task_base_dir, 'model'),      # For saving models and preprocessors
+        os.path.join(task_base_dir, 'results'),    # For plots and metrics logs
     ]
 
     for directory in directories:
         os.makedirs(directory, exist_ok=True)
 
-    log_file = os.path.join(current_dir, 'files/neural_network.log')
+    log_file = os.path.join(task_base_dir, 'files', 'neural_network.log')
     configure_logging(log_file)
 
-    logger.info("Project directories created:")
+    logger.info(f"Task-specific directories created for '{train_task}':")
     for directory in directories:
-        logger.info(f"  - {os.path.basename(directory)}: {directory}")
+        relative_path = os.path.relpath(directory, current_dir)
+        logger.info(f"  - {os.path.basename(directory)}: {relative_path}")
 
     ################################## Step 0.5: Data Consistency Correction ##################################
 
@@ -223,21 +229,20 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
     # Step 4: Initial Hyperparameter Optimization with user-configured task
     logger.info(f"Step 4: Starting hyperparameter optimization for task: {train_task}")
     
-    # Llamar al optimizer ultra-estable con los parámetros correctos
+    # Llamar al optimizer ultra-estable con los parámetros correctos y task-specific directory
     top_configs, study = optimize_hyperparameters(
         X=X_scaled,
         y=y_scaled,
         unknown_index=unknown_index,
         classification_output_shape=classification_output_shape,
-        train_task=train_task
+        train_task=train_task,
+        task_base_dir=task_base_dir
     )
     logger.info(f"    Initial hyperparameter optimization completed.")
 
-    # Export to SQLite using files in the files directory
-    # NOTA: Comentado temporalmente porque ahora tenemos múltiples archivos de journal por fase
-    current_dir = os.path.dirname(__file__)
-    journal_path = os.path.join(current_dir, 'files', 'optuna_journal.log')
-    sqlite_path = os.path.join(current_dir, 'files', 'optuna_study.db')
+    # Export to SQLite using files in the task-specific directory
+    journal_path = os.path.join(task_base_dir, 'files', 'optuna_journal.log')
+    sqlite_path = os.path.join(task_base_dir, 'files', 'optuna_study.db')
     
     export_journal_to_sqlite(
         journal_path, 
@@ -253,7 +258,7 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
     ################################## Step 5: Cross-Validation of Top Configs ##################################
     logger.info("Step 5: Validating top configurations with K-Fold cross-validation...")
 
-    # Llamada con wrapper y nuevos argumentos
+    # Llamada con wrapper y nuevos argumentos usando task-specific paths
     best_config, cv_results, best_model = cross_validation(
         X=X_scaled, 
         y=y_scaled, 
@@ -261,7 +266,7 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
         unknown_index=unknown_index, 
         classification_output_shape=classification_output_shape,
         train_task=train_task,
-        save_path=os.path.join(current_dir, 'model/cross_validation'),
+        save_path=os.path.join(task_base_dir, 'model', 'cross_validation'),
     )
 
     print_config_metrics(best_config)
@@ -278,7 +283,7 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
         best_config_result=best_config,
         classification_output_shape=classification_output_shape,
         unknown_index=unknown_index,
-        save_dir=os.path.join(current_dir, 'model/final_train'),
+        save_dir=os.path.join(task_base_dir, 'model', 'final_train'),
         train_task=train_task,
         max_epochs=500,
         random_state=RANDOM_SEED
@@ -289,7 +294,7 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
     ################################## Step 7: Evaluate ##################################
     logger.info("Step 7: Evaluating external test set")
 
-    from src.neural_network.predict import predict_wells
+    from src.neural_network.predict import predict_wells, save_predictions_to_csv
 
     predictions = predict_wells(
         wells_data=external_test_data,
@@ -307,6 +312,14 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
     )
 
     logger.info("Predictions on external wells completed.")
+    
+    # Save predictions to CSV files in task-specific results directory
+    if predictions:
+        results_dir = os.path.join(task_base_dir, 'results')
+        save_predictions_to_csv(predictions, results_dir)
+        logger.info(f"✅ Prediction CSVs saved to: {results_dir}")
+    else:
+        logger.warning("⚠️  No predictions to save - external test set may be empty")
 
     # Return all the important data structures needed for the next steps
     return (

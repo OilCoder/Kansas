@@ -1,3 +1,5 @@
+"""Verifies GPU availability and performs basic operation tests without modifying system settings. Provides non-intrusive GPU capability checking, device information reporting, and compatibility validation for neural network operations."""
+
 import os
 import logging
 import tensorflow as tf

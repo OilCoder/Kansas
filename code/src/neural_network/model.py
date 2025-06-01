@@ -1,3 +1,5 @@
+"""Defines neural network model architecture with configurable layers, activations, and outputs. Supports multi-task learning for regression and classification with custom metrics, regularization, and GPU optimization for well log prediction tasks."""
+
 # model.py
 
 # IMPORTANT: Initialize GPU environment BEFORE importing TensorFlow

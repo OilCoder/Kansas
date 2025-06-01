@@ -1,13 +1,4 @@
-"""
-📁 Optimizer File Organizer - Organización de Archivos Ultra-Estable
-====================================================================
-
-Organización de archivos y directorios específicos del optimizer
-con estructura jerárquica y nombres descriptivos.
-
-Autor: Sistema de IA
-Versión: 1.0 - Ultra-Estable
-"""
+"""Organizes optimization files and directories with hierarchical structure. Creates timestamped run directories, manages model metadata, implements cleanup policies, and maintains organized storage for hyperparameter optimization experiments and results."""
 
 import os
 import json

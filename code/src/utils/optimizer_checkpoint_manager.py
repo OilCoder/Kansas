@@ -1,13 +1,4 @@
-"""
-💾 Optimizer Checkpoint Manager - Gestión de Checkpoints Ultra-Estable
-======================================================================
-
-Gestión de checkpoints específicos del optimizer con recuperación automática
-y organización de archivos.
-
-Autor: Sistema de IA
-Versión: 1.0 - Ultra-Estable
-"""
+"""Manages optimization checkpoints with automatic saving and recovery capabilities. Provides organized checkpoint storage, metadata tracking, batch cleanup, and system recovery for robust hyperparameter optimization workflows."""
 
 import pickle
 import os

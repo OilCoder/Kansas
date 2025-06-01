@@ -1,3 +1,5 @@
+"""Implements custom TensorFlow metrics for masked classification and regression evaluation. Provides specialized loss functions and accuracy measures that handle unknown class indices for geological formation prediction tasks."""
+
 # IMPORTANT: Initialize GPU environment BEFORE importing TensorFlow
 import src.utils.initialize_gpu
 

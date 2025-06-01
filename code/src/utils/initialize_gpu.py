@@ -1,7 +1,4 @@
-"""
-GPU initialization script optimized for RTX 4080.
-Import and run this BEFORE any other imports that use TensorFlow.
-"""
+"""Configures GPU environment variables and optimizations for RTX 4080 performance. Sets memory allocation, threading, and CUDA parameters before TensorFlow initialization to maximize neural network training efficiency and stability."""
 
 import os
 import logging

@@ -1,13 +1,4 @@
-"""
-📊 Optimizer Quality Validator - Validación de Calidad Ultra-Estable
-====================================================================
-
-Validación de calidad específica del optimizer con verificación de varianza,
-entropía y evaluación de promesa de modelos.
-
-Autor: Sistema de IA
-Versión: 1.0 - Ultra-Estable
-"""
+"""Validates optimization quality through variance and entropy analysis. Assesses model promise, checks prediction diversity, evaluates trial value, and ensures hyperparameter configurations produce meaningful and non-degenerate neural network models."""
 
 import numpy as np
 from scipy.stats import entropy

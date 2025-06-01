@@ -1,13 +1,4 @@
-"""
-🛑 Optimizer NaN Stopping Callback - Detección Temprana de Valores NaN
-======================================================================
-
-Callback personalizado para detener el entrenamiento cuando se detectan
-valores NaN o infinitos en las métricas del modelo durante optimización.
-
-Autor: Sistema de IA
-Versión: 1.0
-"""
+"""Implements TensorFlow callback for early detection and stopping of training when NaN or infinite values appear in metrics. Provides patience-based monitoring to prevent wasted computational resources during hyperparameter optimization."""
 
 import numpy as np
 from tensorflow.keras.callbacks import Callback

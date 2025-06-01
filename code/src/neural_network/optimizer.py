@@ -1,7 +1,4 @@
-"""
-🚀 Optimizer Ultra-Estable - Optimización de Hiperparámetros
-============================================================
-"""
+"""Implements Optuna-based hyperparameter optimization for neural network models. Performs automated search across architecture configurations, regularization parameters, and training settings while saving best models and providing comprehensive trial management."""
 
 import optuna
 import gc
@@ -19,7 +16,7 @@ from src.neural_network.hyperparameters import (
 )
 from src.utils.optimizer_nan_stopping_callback import NaNStoppingCallback
 
-def objective(trial, X, y, unknown_index, classification_output_shape, train_task, best_metric, best_model_base_path):
+def objective(trial, X, y, unknown_index, classification_output_shape, train_task, best_metric, best_model_base_path, task_base_dir):
     """Función objetivo para optimización de hiperparámetros."""
     try:
         hyperparams = get_hyperparams_from_trial(trial)
@@ -71,7 +68,7 @@ def objective(trial, X, y, unknown_index, classification_output_shape, train_tas
             model_folder_name = f"trial_{trial.number:03d}_{task_abbrev}_{loss_str}"
             
             # Path completo del modelo en subcarpeta optuna_trials
-            optuna_trials_dir = os.path.join(os.path.dirname(best_model_base_path), 'optuna_trials')
+            optuna_trials_dir = os.path.join(task_base_dir, 'model', 'optuna_trials')
             os.makedirs(optuna_trials_dir, exist_ok=True)
             versioned_model_path = os.path.join(optuna_trials_dir, model_folder_name)
             
@@ -79,7 +76,7 @@ def objective(trial, X, y, unknown_index, classification_output_shape, train_tas
             model.save(versioned_model_path)
             
             print(f"🎯 Nuevo mejor modelo: {metric_value:.6f} (Trial {trial.number})")
-            print(f"💾 Guardado en: optuna_trials/{model_folder_name}")
+            print(f"💾 Guardado en: {train_task}/model/optuna_trials/{model_folder_name}")
 
         del model
         gc.collect()
@@ -90,14 +87,19 @@ def objective(trial, X, y, unknown_index, classification_output_shape, train_tas
         gc.collect()
         return float('inf')
 
-def optimize_hyperparameters(X, y, unknown_index, classification_output_shape, train_task, n_trials=OPTIM_N_TRIALS, top_n=OPTIM_TOP_TRIALS):
+def optimize_hyperparameters(X, y, unknown_index, classification_output_shape, train_task, n_trials=OPTIM_N_TRIALS, top_n=OPTIM_TOP_TRIALS, task_base_dir=None):
     """Función principal de optimización de hiperparámetros."""
     current_dir = os.path.dirname(__file__)
-    log_file = os.path.join(current_dir, 'files', 'optuna_journal.log')
+    
+    # Use task-specific directory if provided, otherwise fall back to current structure
+    if task_base_dir is None:
+        task_base_dir = os.path.join(current_dir, train_task)
+    
+    log_file = os.path.join(task_base_dir, 'files', 'optuna_journal.log')
     storage = JournalStorage(JournalFileStorage(log_file))
     
-    # Configurar paths
-    best_model_path = os.path.join(current_dir, 'model', f'best_model_{train_task}')
+    # Configurar paths usando task-specific structure
+    best_model_path = os.path.join(task_base_dir, 'model', f'best_model_{train_task}')
     os.makedirs(os.path.dirname(best_model_path), exist_ok=True)
     best_metric = [float('inf')]
 
@@ -113,7 +115,7 @@ def optimize_hyperparameters(X, y, unknown_index, classification_output_shape, t
     
     # Optimizar
     study.optimize(
-        lambda trial: objective(trial, X, y, unknown_index, classification_output_shape, train_task, best_metric, best_model_path),
+        lambda trial: objective(trial, X, y, unknown_index, classification_output_shape, train_task, best_metric, best_model_path, task_base_dir),
         n_trials=n_trials,
         n_jobs=N_JOBS_GPU,
         show_progress_bar=True
@@ -124,8 +126,8 @@ def optimize_hyperparameters(X, y, unknown_index, classification_output_shape, t
     best_trials = sorted(valid_trials, key=lambda t: t.value)[:top_n]
     top_configs = [trial.params for trial in best_trials]
     
-    # Mostrar todos los modelos guardados
-    optuna_trials_dir = os.path.join(current_dir, 'model', 'optuna_trials')
+    # Mostrar todos los modelos guardados usando task-specific path
+    optuna_trials_dir = os.path.join(task_base_dir, 'model', 'optuna_trials')
     if os.path.exists(optuna_trials_dir):
         saved_models = [d for d in os.listdir(optuna_trials_dir) if d.startswith('trial_') and os.path.isdir(os.path.join(optuna_trials_dir, d))]
         if saved_models:
@@ -142,16 +144,16 @@ def optimize_hyperparameters(X, y, unknown_index, classification_output_shape, t
             saved_models.sort(key=extract_loss)
             for i, model_name in enumerate(saved_models[:5]):  # Mostrar top 5
                 loss_val = extract_loss(model_name)
-                print(f"   {i+1}. optuna_trials/{model_name} (loss: {loss_val:.6f})")
+                print(f"   {i+1}. {train_task}/model/optuna_trials/{model_name} (loss: {loss_val:.6f})")
             if len(saved_models) > 5:
-                print(f"   ... y {len(saved_models) - 5} más en optuna_trials/")
+                print(f"   ... y {len(saved_models) - 5} más en {train_task}/model/optuna_trials/")
     else:
-        print(f"\n📁 No se encontraron modelos de Optuna en optuna_trials/")
+        print(f"\n📁 No se encontraron modelos de Optuna en {train_task}/model/optuna_trials/")
     
     # Resumen final
     print(f"\n📊 Optimización completada:")
     print(f"   Mejor métrica: {best_metric[0]:.6f}")
     print(f"   Trials válidos: {len(valid_trials)}/{len(study.trials)}")
-    print(f"   Mejores modelos guardados en: optuna_trials/")
+    print(f"   Mejores modelos guardados en: {train_task}/model/optuna_trials/")
     
     return top_configs, study 

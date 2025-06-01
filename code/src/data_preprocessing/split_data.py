@@ -1,3 +1,6 @@
+"""
+Splits well datasets into training/validation and external test sets. Filters wells by curve availability, creates binary matrices showing curve presence, and provides visualization tools for data distribution analysis.
+"""
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns

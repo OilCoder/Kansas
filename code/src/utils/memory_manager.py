@@ -1,3 +1,5 @@
+"""Manages GPU and system memory allocation for TensorFlow operations. Provides distribution strategies, memory optimization for Optuna trials, cleanup utilities, and real-time memory monitoring for efficient neural network training."""
+
 import os
 import logging
 import tensorflow as tf

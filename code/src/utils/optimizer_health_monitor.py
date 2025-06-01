@@ -1,13 +1,4 @@
-"""
-🛡️ Optimizer Health Monitor - Sistema de Monitoreo Ultra-Estable
-================================================================
-
-Monitoreo continuo de salud del sistema específico para el optimizer
-con gestión inteligente de workers paralelos.
-
-Autor: Sistema de IA
-Versión: 1.0 - Ultra-Estable
-"""
+"""Monitors system health during hyperparameter optimization with real-time resource tracking. Provides intelligent worker management, memory monitoring, temperature checking, and automatic scaling based on system performance for stable optimization runs."""
 
 import psutil
 import time

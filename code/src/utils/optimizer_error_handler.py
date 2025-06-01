@@ -1,13 +1,4 @@
-"""
-⚠️ Optimizer Error Handler - Manejo de Errores Ultra-Estable
-============================================================
-
-Manejo de errores específicos del optimizer con recuperación automática
-y parada de emergencia.
-
-Autor: Sistema de IA
-Versión: 1.0 - Ultra-Estable
-"""
+"""Handles optimization errors with automatic recovery and emergency shutdown capabilities. Manages failed workers, validates results, implements retry mechanisms, and provides graceful degradation during hyperparameter search failures."""
 
 import gc
 import numpy as np

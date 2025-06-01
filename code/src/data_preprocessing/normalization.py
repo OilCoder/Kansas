@@ -1,3 +1,6 @@
+"""
+Normalizes well log data using adaptive strategies. Applies per-well or global transformations (StandardScaler, PowerTransformer) based on variance thresholds. Handles categorical encoding, statistical descriptors computation, and feature/target scaling for machine learning pipelines.
+"""
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, PowerTransformer, LabelEncoder
