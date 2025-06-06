@@ -365,7 +365,7 @@ def select_best_config(results, train_task='both'):
     best_config_result = sorted_results[0]
     
     print(f"📊 Configuration Selection Results:")
-    for i, result in enumerate(sorted_results[:3], 1):  # Show top 3
+    for i, result in enumerate(sorted_results[:3], 1): 
         score = result['composite_score']
         config_summary = f"layers={result['config']['num_layers']}, lr={result['config']['learning_rate']:.1e}"
         

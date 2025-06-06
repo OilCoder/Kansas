@@ -47,10 +47,10 @@ from utils.neural_network.optimization.optimizer_export_journal_to_sqlite import
 from src.data_preprocessing.split_data import split_wells_by_prediction, plot_classification_matrix
 from src.data_preprocessing.feature_engineering import generate_features
 from src.data_preprocessing.normalization import prepare_and_normalize_data
-from src.data_preprocessing.consistency_corrector import correct_data_consistency
+from src.data_preprocessing.consistency_corrector import preprocess_data_comprehensive
 
 # Local imports - formation mapping
-from utils.geology.formation_mapper import standardize_formation_name, get_formation_statistics
+from utils.geology.formation_mapper import get_formation_statistics
 
 # Local imports - neural network
 from src.neural_network.optimizer import optimize_hyperparameters
@@ -68,8 +68,9 @@ from src.neural_network.hyperparameters import (
     DEBUG_VARIANCE_THRESHOLD
 )
 
-# Local imports - utilities for printing
+# Local imports - utilities for printing and plotting
 from utils.neural_network.visualization.print_config_metrics import print_config_metrics
+from utils.neural_network.visualization.well_prediction_plotter import save_prediction_plots
 
 logger = logging.getLogger(__name__)
 
@@ -147,66 +148,18 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
         relative_path = os.path.relpath(directory, current_dir)
         logger.info(f"  - {os.path.basename(directory)}: {relative_path}")
 
-    ################################## Step 0.5: Data Consistency Correction ##################################
+    ################################## Step 0.5: Data Preprocessing ##################################
 
-    logger.info("Step 0.5: Correcting data consistency issues...")
+    logger.info("Step 0.5: Data preprocessing - consistency correction and formation standardization...")
     
-    # Apply consistency corrections to ALL data before splitting
-    data_corrected, correction_report = correct_data_consistency(data)
+    # Apply comprehensive data preprocessing (consistency correction + formation standardization)
+    data_with_standardized_formations, preprocessing_report = preprocess_data_comprehensive(data)
     
-    # Log correction summary
-    logger.info("Data consistency correction completed:")
-    logger.info("Correction Report:")
-    for line in correction_report.split('\n'):
+    # Log preprocessing summary
+    logger.info("Data preprocessing completed:")
+    for line in preprocessing_report.split('\n'):
         if line.strip():
             logger.info(f"    {line}")
-
-    ################################## Step 0.6: Formation Standardization ##################################
-
-    logger.info("Step 0.6: Standardizing formation names...")
-    
-    # Apply formation mapping to standardize formation names across all wells
-    data_with_standardized_formations = {}
-    total_formations_before = 0
-    total_formations_after = 0
-    
-    for well_name, well_data in data_corrected.items():
-        if 'Formation' in well_data.columns:
-            # Create a copy to avoid modifying original data
-            well_data_copy = well_data.copy()
-            
-            # Count formations before mapping
-            formations_before = well_data_copy['Formation'].nunique()
-            total_formations_before += formations_before
-            
-            # Apply formation mapping using the standardize function
-            well_data_copy['Formation'] = well_data_copy['Formation'].apply(standardize_formation_name)
-            
-            # Count formations after mapping
-            formations_after = well_data_copy['Formation'].nunique()
-            total_formations_after += formations_after
-            
-            data_with_standardized_formations[well_name] = well_data_copy
-            
-            logger.info(f"    {well_name}: {formations_before} → {formations_after} unique formations")
-        else:
-            # Well doesn't have Formation column, keep as is
-            data_with_standardized_formations[well_name] = well_data
-            logger.info(f"    {well_name}: No Formation column found")
-    
-    # Log overall mapping results
-    logger.info("Formation standardization completed:")
-    logger.info(f"    Total unique formations before mapping: {total_formations_before}")
-    logger.info(f"    Total unique formations after mapping: {total_formations_after}")
-    logger.info(f"    Reduction: {total_formations_before - total_formations_after} formations consolidated")
-    
-    # Log the mapping applied
-    logger.info("    Applied mappings:")
-    logger.info("        • LKC variants (LKC B, C, D, E, F, H) → Lansing-Kansas City")
-    logger.info("        • Stark variants (Stark, Stark Shale) → Stark Shale")
-    logger.info("        • Deer Creek variants → Deer Creek")
-    logger.info("        • Heebner variants → Heebner Shale")
-    logger.info("        • Other formations remain unchanged")
 
     ################################## Step 1: Data Loading and Preprocessing ##################################
 
@@ -424,6 +377,25 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
         results_dir = os.path.join(task_base_dir, 'results')
         save_predictions_to_csv(predictions, results_dir)
         logger.info(f"✅ Prediction CSVs saved to: {results_dir}")
+        
+        # ----
+        # Step 7.1 – Generate Prediction Plots ______________________
+        # ----
+        
+        logger.info("    Step 7.1: Generating prediction plots...")
+        
+        # Create track-style plots for all predicted wells
+        plot_files = save_prediction_plots(
+            predictions_data=predictions,
+            task_base_dir=task_base_dir,
+            create_summary=True,
+            max_wells=None  # Plot all wells
+        )
+        
+        logger.info(f"✅ Prediction plots generated:")
+        logger.info(f"    Individual plots: {len(plot_files['individual_plots'])}")
+        logger.info(f"    Summary plots: {len(plot_files['summary_plot'])}")
+        
     else:
         logger.warning("⚠️  No predictions to save - external test set may be empty")
     
@@ -435,7 +407,7 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
 
     # Return all the important data structures needed for the next steps
     return (
-        data_corrected, correction_report,                                          # Step 0.5
+        data_with_standardized_formations, preprocessing_report,                    # Step 0.5
         train_validation_data, external_test_data, discarded_wells,                 # Step 1
         engineered_data, feature_info, final_cols,                                  # Step 2 
         X_scaled, y_scaled, per_well_strategies, global_feature_scalers,            # Step 3

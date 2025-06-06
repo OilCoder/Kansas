@@ -1,0 +1,26 @@
+{
+    "num_layers": 6,
+    "units_layer_1": 16,
+    "units_layer_2": 32,
+    "units_layer_3": 16,
+    "units_layer_4": 32,
+    "units_layer_5": 16,
+    "units_layer_6": 16,
+    "activation_early": "tanh",
+    "activation_late": "leaky_relu",
+    "dropout_rate": 0.1,
+    "optimizer": "nadam",
+    "learning_rate": 4.968054117562178e-05,
+    "batch_size": 128,
+    "l1_reg": 1.0623888265567784e-05,
+    "l2_reg": 1.1982018787729695e-07,
+    "clipnorm": 3.3700120277894348,
+    "units_per_layer": [
+        16,
+        32,
+        16,
+        32,
+        16,
+        16
+    ]
+}

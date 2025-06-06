@@ -26,18 +26,16 @@ MIN_CURVES = 5    # Minimum number of curves a well must have to be included
 # - 'regression': Only predict CNLS values
 # - 'classification': Only predict Formation classes  
 # - 'both': Predict both CNLS and Formation simultaneously
-TRAIN_TASK = 'classification'  # Default to regression, user can change this
+TRAIN_TASK = 'regression'  # Default to regression, user can change this
 
-# ----------------------------------------------------------------------------------
-# Constants for: pipeline.py
-# ----------------------------------------------------------------------------------
-# Feature engineering parameters
-ROLLING_WINDOW_SIZE = 20
-DEFAULT_NUM_CLUSTERS = 15
 
 # ----------------------------------------------------------------------------------
 # Constants for: feature_engineering.py
 # ----------------------------------------------------------------------------------
+# K-means cluster
+ROLLING_WINDOW_SIZE = 20
+DEFAULT_NUM_CLUSTERS = 15
+
 # Clustering parameters
 PHI_CLUSTERING_SIZE = 10
 SWVSH_CLUSTERING_SIZE = 12
@@ -111,8 +109,8 @@ NUM_STATISTICAL_DESCRIPTORS = 5  # mean, std, min, max, median
 # Constants for: model.py, optimizer.py
 # ----------------------------------------------------------------------------------
 # Optimization hyperparameters
-OPTIM_N_TRIALS = 2            # Number of optimization trials
-OPTIM_TOP_TRIALS = 2            # Number of top configurations to select
+OPTIM_N_TRIALS = 1            # Number of optimization trials
+OPTIM_TOP_TRIALS = 1            # Number of top configurations to select
 N_JOBS_GPU = 8                  # Number of parallel jobs running on GPU (reduced for stability)
 
 # Range for the number of layers (depth of the MLP)

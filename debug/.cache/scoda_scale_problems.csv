@@ -1,7 +1,0 @@
-Curve,Issue_Type,Description
-SP,MAX_SCALE,MAX_SCALE: 8247.6x diferencia en valores máximos
-RILM,RANGE_SCALE,RANGE_SCALE: 165.8x diferencia en rangos
-RILM,MAX_SCALE,MAX_SCALE: 937.9x diferencia en valores máximos
-DPOR,MAX_SCALE,MAX_SCALE: 137.7x diferencia en valores máximos
-SPOR,MAX_SCALE,MAX_SCALE: 190.6x diferencia en valores máximos
-CNLS,MAX_SCALE,MAX_SCALE: 235.3x diferencia en valores máximos

@@ -1,0 +1,5 @@
+Well_Name,Prediction_Type,Nearest_Reference_Well,Number_of_Points,CSV_File
+Downing 1-6,CNLS,Mary Ann 3-1,1132,Downing 1-6_predictions.csv
+Mary Ann 7-1,CNLS,Walter 4-1,1307,Mary Ann 7-1_predictions.csv
+Walter 8-1,CNLS,Walter Bros. 1-6,1290,Walter 8-1_predictions.csv
+Downing 'B' 1-1,CNLS,Walter 4-1,1406,Downing 'B' 1-1_predictions.csv
