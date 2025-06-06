@@ -1,5 +1,14 @@
 """
-Generates advanced petrophysical features from well log curves. Creates statistical, spectral, clustering, and geological features including RQI, porosity classes, water saturation, and multi-scale analysis using signal processing techniques.
+Generates advanced petrophysical features from well log curves.
+
+Creates statistical, spectral, clustering, and geological features including RQI, porosity 
+classes, water saturation, and multi-scale analysis using signal processing techniques.
+
+• generate_features() - Main feature generation pipeline
+• Statistical features (rolling stats, gradients, autocorrelation)
+• Spectral features (FFT, permutation entropy)
+• Geological features (RQI, Archie equation, formation classification)
+• Clustering-based features (porosity and shale volume grouping)
 """
 import logging
 from typing import Dict, List, Tuple
@@ -408,6 +417,9 @@ def generate_features(
         # Create Well_ID as a simple scalar value, then create a Series from it
         well_id_value = abs(hash((lat0, lon0))) % 100000 if not np.isnan(lat0 + lon0) else np.nan
         d["Well_ID"] = pd.Series(well_id_value, index=d.index).astype("category")
+        
+        # Note: Well_ID will be assigned unknown_index for new wells during prediction
+        # This is expected behavior and allows the model to handle unseen wells
 
         # H) Clustering
         ignore_cols = set(curves_to_predict + ["Formation", "Well_ID"])

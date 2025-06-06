@@ -1,7 +1,24 @@
-"""Implements custom TensorFlow metrics for masked classification and regression evaluation. Provides specialized loss functions and accuracy measures that handle unknown class indices for geological formation prediction tasks."""
+"""
+Implements custom TensorFlow metrics for masked classification and regression evaluation.
+
+Provides specialized loss functions and accuracy measures that handle unknown class 
+indices for geological formation prediction tasks.
+
+• create_masked_sparse_categorical_crossentropy() - Custom loss function
+• MaskedSparseCategoricalAccuracy - Accuracy metric ignoring unknown classes
+• MaskedTopKAccuracy - Top-K accuracy for masked predictions
+• get_regression_metrics() - Standard regression metrics
+• get_classification_metrics() - Classification metrics with masking support
+"""
 
 # IMPORTANT: Initialize GPU environment BEFORE importing TensorFlow
-import src.utils.initialize_gpu
+import sys
+import os
+# Add utils directory to path
+utils_path = os.path.join(os.path.dirname(__file__), '..', '..', 'utils')
+sys.path.insert(0, utils_path)
+
+from utils.neural_network.memory_management.initialize_gpu import *
 
 import tensorflow as tf
 from tensorflow.keras.metrics import (
@@ -18,7 +35,6 @@ from tensorflow.keras import backend as K
 # en la normalización (por ejemplo, si las clases conocidas tienen valores de 0 a 11,
 # unknown_index debe ser 12). Asegúrate de actualizar este valor si es necesario.
 # ------------------------------------------------------------------------------
-# UNKNOWN_INDEX = 12
 
 # ------------------------------
 # Loss personalizada para ignorar UNKNOWN
@@ -75,6 +91,20 @@ class MaskedSparseCategoricalAccuracy(tf.keras.metrics.Metric):
     def reset_state(self):
         self.total.assign(0.0)
         self.count.assign(0.0)
+    
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            'unknown_index': self.unknown_index
+        })
+        return config
+    
+    @classmethod
+    def from_config(cls, config):
+        # Handle legacy models that don't have unknown_index in config
+        if 'unknown_index' not in config:
+            config['unknown_index'] = -1  # Default value
+        return cls(**config)
 
 class MaskedTopKAccuracy(tf.keras.metrics.Metric):
     def __init__(self, unknown_index, k=3, name='masked_top_k_acc', **kwargs):
@@ -104,6 +134,23 @@ class MaskedTopKAccuracy(tf.keras.metrics.Metric):
     def reset_state(self):
         self.total.assign(0.0)
         self.count.assign(0.0)
+    
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            'unknown_index': self.unknown_index,
+            'k': self.k
+        })
+        return config
+    
+    @classmethod
+    def from_config(cls, config):
+        # Handle legacy models that don't have unknown_index in config
+        if 'unknown_index' not in config:
+            config['unknown_index'] = -1  # Default value
+        if 'k' not in config:
+            config['k'] = 3  # Default value
+        return cls(**config)
 
 # ------------------------------
 # Métricas listas para usar

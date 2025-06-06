@@ -1,5 +1,12 @@
 """
-Corrects porosity scale inconsistencies in well log data. Automatically detects and converts DPOR, SPOR, and CNLS curves from percentage scale (0-100) to decimal scale (0-1) when needed.
+Corrects porosity scale inconsistencies in well log data.
+
+Automatically detects and converts porosity curves (DPOR, SPOR, CNLS) from percentage 
+scale (0-100) to decimal scale (0-1) when needed, ensuring data consistency across wells.
+
+• correct_data_consistency() - Main correction function with detailed reporting
+• Handles DPOR, SPOR, and CNLS curves
+• Provides correction statistics and summary reports
 """
 
 import pandas as pd

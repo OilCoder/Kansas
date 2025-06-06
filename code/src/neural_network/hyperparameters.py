@@ -1,4 +1,15 @@
-"""Centralizes neural network hyperparameters, optimization ranges, and configuration constants. Defines training tasks, feature engineering parameters, normalization thresholds, model architecture options, and experimental settings for reproducible neural network training."""
+"""
+Centralizes neural network hyperparameters and configuration constants.
+
+Defines training tasks, feature engineering parameters, normalization thresholds, model 
+architecture options, and experimental settings for reproducible neural network training.
+
+• Training task configuration (regression, classification, both)
+• Optimization ranges for hyperparameter search
+• Feature engineering and normalization thresholds
+• Model architecture parameters (layers, units, activations)
+• Experimental flags and random seed management
+"""
 
 # ----------------------------------------------------------------------------------
 # General settings (Used across multiple files)
@@ -100,18 +111,18 @@ NUM_STATISTICAL_DESCRIPTORS = 5  # mean, std, min, max, median
 # Constants for: model.py, optimizer.py
 # ----------------------------------------------------------------------------------
 # Optimization hyperparameters
-OPTIM_N_TRIALS = 10            # Number of optimization trials
+OPTIM_N_TRIALS = 2            # Number of optimization trials
 OPTIM_TOP_TRIALS = 2            # Number of top configurations to select
 N_JOBS_GPU = 8                  # Number of parallel jobs running on GPU (reduced for stability)
 
 # Range for the number of layers (depth of the MLP)
-OPTIM_NUM_LAYERS_RANGE = (6, 25)  # Adjusted for stability
+OPTIM_NUM_LAYERS_RANGE = (4, 12)  # Adjusted for stability
 
 # Possible sizes for each hidden layer
-OPTIM_NUM_UNITS_OPTIONS = [16, 32, 64, 128, 256, 512, 768, 1024]   # Reduced to prevent excessive model complexity
+OPTIM_NUM_UNITS_OPTIONS = [16, 32, 64, 128, 256]   # Reduced to prevent excessive model complexity
 
 # Range for dropout rate
-OPTIM_DROPOUT_RATE_RANGE = (0.0, 0.4)  # p.ej., para evitar excesos
+OPTIM_DROPOUT_RATE_RANGE = (0.1, 0.5)  # Aumentado mínimo de 0.0 a 0.1 para mejor regularización
 
 # Possible activation functions
 OPTIM_ACTIVATION_OPTIONS = ["relu", "tanh", "elu", "sigmoid", "swish", "gelu", "selu", "leaky_relu"]  # Removed sigmoid due to saturation issues
@@ -123,7 +134,7 @@ OPTIM_OPTIMIZER_OPTIONS = ["adam", "adamw", "nadam"]  # AdamW added for better r
 OPTIM_LEARNING_RATE_RANGE = (1e-5, 1e-2)  # Wider range, mixed precision allows higher LR
 
 # Possible batch sizes
-OPTIM_BATCH_SIZE_OPTIONS = [32, 64, 128, 254]  # Smaller batch sizes to enhance numerical stability
+OPTIM_BATCH_SIZE_OPTIONS = [16, 32, 64, 128]  # Smaller batch sizes to enhance numerical stability
 
 # Range for L1 and L2 regularization
 OPTIM_L1_REG_RANGE = (1e-8, 1e-4)

@@ -1,4 +1,16 @@
-"""Performs cross-validation on top hyperparameter configurations to select optimal models. Implements task-specific composite scoring, prediction quality assessment, and robust model selection with comprehensive performance evaluation and validation."""
+"""
+Performs cross-validation on top hyperparameter configurations to select optimal models.
+
+Implements task-specific composite scoring, prediction quality assessment, and robust 
+model selection with comprehensive performance evaluation and validation.
+
+• cross_validation() - Main cross-validation function
+• reconstruct_full_hyperparams() - Rebuild complete parameter sets
+• Task-specific composite scoring for model ranking
+• K-fold cross-validation with stratified splits
+• Prediction quality assessment and validation
+• Performance aggregation and statistical analysis
+"""
 
 import os
 import json
@@ -6,9 +18,10 @@ import numpy as np
 import pandas as pd
 
 # IMPORTANT: Initialize GPU environment BEFORE importing TensorFlow
-import src.utils.initialize_gpu
+import utils.neural_network.memory_management.initialize_gpu
 
 import tensorflow as tf
+import gc
 from sklearn.model_selection import KFold
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from tqdm import tqdm
@@ -16,6 +29,9 @@ from scipy.stats import entropy
 
 from src.neural_network.model import build_model
 from src.neural_network.hyperparameters import CV_SPLITS, RANDOM_SEED
+
+# Import memory management utilities
+from utils.neural_network.memory_management.memory_manager import clean_memory_for_trial
 
 ###############################################
 # Reconstrucción de Hiperparámetros
@@ -218,15 +234,20 @@ def cross_validate_top_configs_refactor(
                 y_train['classification_output'] = y_clf_all[train_idx]
                 y_val['classification_output'] = y_clf_all[val_idx]
 
-            tf.keras.backend.clear_session()
+            # Limpieza completa de memoria entre folds
+            clean_memory_for_trial()
 
+            # Pasar y_train para cálculo de class weights en clasificación
+            y_train_for_weights = y_train['classification_output'] if train_task == 'classification' else None
+            
             model = build_model(
                 config,
                 input_shape=X.shape[1:],
                 regression_output_shape=1,
                 classification_output_shape=classification_output_shape,
                 unknown_index=unknown_index,
-                train_task=train_task
+                train_task=train_task,
+                y_train=y_train_for_weights
             )
 
             callbacks = [
@@ -307,6 +328,9 @@ def cross_validate_top_configs_refactor(
             print(f"   Avg Prediction Variance: {quality_aggregated['variance_mean']:.2e}")
         if 'entropy_mean' in quality_aggregated:
             print(f"   Avg Prediction Entropy: {quality_aggregated['entropy_mean']:.3f}")
+        
+        # Limpieza de memoria después de completar cada configuración
+        clean_memory_for_trial()
 
     # Guardar el mejor modelo después de completar todas las validaciones
     if save_path is not None and best_model is not None:

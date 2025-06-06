@@ -1,11 +1,20 @@
 """
-Normalizes well log data using adaptive strategies. Applies per-well or global transformations (StandardScaler, PowerTransformer) based on variance thresholds. Handles categorical encoding, statistical descriptors computation, and feature/target scaling for machine learning pipelines.
+Normalizes well log data using adaptive strategies.
+
+Applies per-well or global transformations (StandardScaler, PowerTransformer) based on 
+variance thresholds. Handles categorical encoding and feature/target scaling for ML pipelines.
+
+• prepare_and_normalize_data() - Main normalization pipeline
+• fit_feature_scalers() - Adaptive scaler selection based on variance
+• compute_common_descriptors() - Statistical feature computation
+• transform_new_well() - Apply fitted scalers to new data
+• Supports both per-well and global normalization strategies
 """
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, PowerTransformer, LabelEncoder
 import logging
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, List, Optional
 
 # Import constants from hyperparameters
 from src.neural_network.hyperparameters import (
@@ -355,7 +364,8 @@ def transform_new_well(
                         out.append(int(enc.transform([v])[0]))
                     except ValueError:
                         # If the value was not seen during training, assign unknown_index
-                        logger.warning(f"Unseen categorical value '{v}' in column '{col}'. Assigning unknown_index.")
+                        if col != 'Well_ID':  # Don't warn for Well_ID as it's expected for new wells
+                            logger.warning(f"Unseen categorical value '{v}' in column '{col}'. Assigning unknown_index.")
                         out.append(unk)
             data[col] = out
 

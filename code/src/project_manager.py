@@ -1,3 +1,17 @@
+"""
+Manages well log data projects with comprehensive data loading and analysis capabilities.
+
+Provides field selection, LAS file processing, curve standardization, outlier detection, 
+and data preparation for machine learning workflows in oil and gas exploration.
+
+• ProjectManager - Main project management class
+• LAS file loading and processing with welly integration
+• Curve standardization and mapping functionality
+• Statistical analysis and outlier detection methods
+• Formation data management and unique formation tracking
+• Data preparation and export for neural network training
+"""
+
 # project_manager.py
 import welly
 import os

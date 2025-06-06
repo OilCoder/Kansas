@@ -1,4 +1,16 @@
-"""Performs neural network inference on well log data using trained models. Handles feature engineering, normalization, prediction, and result export for both training and external test wells with automatic reference well matching."""
+"""
+Performs neural network inference on well log data using trained models.
+
+Handles feature engineering, normalization, prediction, and result export for both 
+training and external test wells with automatic reference well matching.
+
+• save_predictions_to_csv() - Export predictions to CSV files
+• predict_on_wells() - Main prediction function for multiple wells
+• Feature engineering and normalization for new wells
+• Automatic reference well matching for normalization
+• Support for both training and external test datasets
+• CSV export with organized results structure
+"""
 
 import os
 import numpy as np
@@ -16,6 +28,29 @@ from src.neural_network.hyperparameters import (
 # Feature engineering and normalization
 from src.data_preprocessing.feature_engineering import generate_features
 from src.data_preprocessing.normalization import transform_new_well
+
+# Import custom metrics for model loading
+from src.neural_network.metrics import (
+    MaskedSparseCategoricalAccuracy, 
+    MaskedTopKAccuracy,
+    create_masked_sparse_categorical_crossentropy
+)
+
+# Import formation mapping utilities
+import sys
+import os
+# Add utils directory to path
+utils_path = os.path.join(os.path.dirname(__file__), '..', '..', 'utils')
+sys.path.insert(0, utils_path)
+
+from utils.geology.formation_mapper import (
+    apply_formation_mapping,
+    get_formation_statistics,
+    export_predictions_with_mapping
+)
+
+# Import memory management utilities
+from utils.neural_network.memory_management.memory_manager import clean_memory_for_trial
 
 logger = logging.getLogger(__name__)
 
@@ -43,21 +78,62 @@ def save_predictions_to_csv(predictions_dict: Dict[str, Dict], save_dir: str = N
     
     for well_name, results in predictions_dict.items():
         try:
-            # Create DataFrame with results
-            df = pd.DataFrame({
-                'DEPT': results['DEPT'],
-                'CNLS_Original': results['CNLS'],
-                'CNLS_Predicted': results['CNLS_Predicted']
-            })
+            # Determine what predictions are available
+            has_cnls = 'CNLS' in results and 'CNLS_Predicted' in results
+            has_formation = 'Formation' in results and 'Formation_Predicted' in results
             
-            # Add metadata as comments in the CSV
-            metadata_lines = [
-                f"# Well: {well_name}",
+            if not has_cnls and not has_formation:
+                logger.warning(f"⚠️  No predictions found for {well_name}")
+                continue
+            
+            # Create DataFrame based on available predictions
+            df_data = {'DEPT': results['DEPT']}
+            metadata_lines = [f"# Well: {well_name}"]
+            
+            if has_cnls:
+                df_data['CNLS_Original'] = results['CNLS']
+                df_data['CNLS_Predicted'] = results['CNLS_Predicted']
+                metadata_lines.append("# Type: CNLS Regression")
+            
+            if has_formation:
+                df_data['Formation_Original'] = results['Formation']
+                df_data['Formation_Predicted'] = results['Formation_Predicted']
+                metadata_lines.append("# Type: Formation Classification (Standardized Names)")
+            
+            # Add common metadata
+            metadata_lines.extend([
                 f"# Nearest Reference Well: {results['nearest_well']}",
                 f"# Number of Points: {results['num_points']}",
-                f"# Columns: DEPT, CNLS_Original, CNLS_Predicted",
-                ""
-            ]
+                f"# Columns: {', '.join(df_data.keys())}",
+            ])
+            
+            df = pd.DataFrame(df_data)
+            
+            # ✅ Apply formation mapping if formation predictions exist
+            if has_formation:
+                # Get statistics before mapping
+                stats_before = get_formation_statistics(df)
+                
+                # Apply standardized formation mapping
+                df = apply_formation_mapping(df)
+                
+                # Get statistics after mapping  
+                stats_after = get_formation_statistics(df)
+                
+                # Add mapping info to metadata
+                metadata_lines.extend([
+                    "#",
+                    "# Formation Mapping Applied:",
+                    "# - LKC variants (LKC B, C, D, E, F, H) → Lansing-Kansas City",
+                    "# - Stark variants (Stark, Stark Shale) → Stark Shale",
+                    "# - Deer Creek variants → Deer Creek", 
+                    "# - Heebner variants → Heebner Shale",
+                    "# - Other formations remain unchanged",
+                    f"# Accuracy before mapping: {stats_before.get('accuracy_before_mapping', 0):.3f}",
+                    f"# Accuracy after mapping: {stats_after.get('accuracy_after_mapping', 0):.3f}",
+                ])
+            
+            metadata_lines.append("")
             
             # Save CSV file
             csv_filename = f"{well_name}_predictions.csv"
@@ -78,8 +154,18 @@ def save_predictions_to_csv(predictions_dict: Dict[str, Dict], save_dir: str = N
     # Create summary file
     summary_data = []
     for well_name, results in predictions_dict.items():
+        has_cnls = 'CNLS' in results and 'CNLS_Predicted' in results
+        has_formation = 'Formation' in results and 'Formation_Predicted' in results
+        
+        prediction_type = []
+        if has_cnls:
+            prediction_type.append("CNLS")
+        if has_formation:
+            prediction_type.append("Formation")
+        
         summary_data.append({
             'Well_Name': well_name,
+            'Prediction_Type': '+'.join(prediction_type) if prediction_type else 'None',
             'Nearest_Reference_Well': results['nearest_well'],
             'Number_of_Points': results['num_points'],
             'CSV_File': f"{well_name}_predictions.csv"
@@ -109,7 +195,9 @@ def predict_wells(
     global_columns: list,
     well_descriptors: dict,
     target_scalers: dict,
-    train_task: str = 'regression'
+    train_task: str = 'regression',
+    unknown_index: int = -1,
+    formation_encoder: dict = None
 ) -> Dict[str, Dict]:
     """
     Predict wells using the trained model and normalization parameters.
@@ -127,25 +215,46 @@ def predict_wells(
         well_descriptors: Well descriptors for similarity matching
         target_scalers: Target scalers for denormalization
         train_task: Training task ('regression', 'classification', 'both')
+        unknown_index: Index used for unknown classes in classification
+        formation_encoder: Formation encoder for classification tasks
         
     Returns:
         Dictionary with prediction results for each well
     """
-    logger.info(f"🚀 Starting prediction for {len(wells_data)} wells")
+    logger.info(f"🚀 Starting {train_task} prediction for {len(wells_data)} wells")
     
-    # Load model
+    # ----
+    # Step 1 – Load model with appropriate custom objects
+    # ----
+    
     logger.info(f"📥 Loading model from: {model_path}")
-    model = tf.keras.models.load_model(model_path)
     
-    # Initialize results dictionary
+    custom_objects = {}
+    if train_task in ['classification', 'both']:
+        from src.neural_network.metrics import masked_sparse_categorical_crossentropy
+        from src.neural_network.model import focal_loss
+        custom_objects.update({
+            'MaskedSparseCategoricalAccuracy': MaskedSparseCategoricalAccuracy,
+            'MaskedTopKAccuracy': MaskedTopKAccuracy,
+            'masked_sparse_categorical_crossentropy': masked_sparse_categorical_crossentropy,
+            f'masked_sparse_categorical_crossentropy_unknown_{unknown_index}': create_masked_sparse_categorical_crossentropy(unknown_index),
+            'focal_loss_fixed': focal_loss(alpha=0.1, gamma=1.0)
+        })
+        logger.info(f"🔧 Loading with custom classification objects (unknown_index: {unknown_index})")
+    
+    model = tf.keras.models.load_model(model_path, custom_objects=custom_objects or None)
+    
+    # ----
+    # Step 2 – Process each well
+    # ----
+    
     results_dict = {}
     
-    # Process each well
     for well_name, well_data in wells_data.items():
         logger.info(f"🔍 Processing well: {well_name}")
         
         try:
-            # 1. Feature Engineering
+            # Substep 2.1 – Feature engineering ______________________
             engineered_features, feature_info, final_cols = generate_features(
                 wells_data={well_name: well_data},
                 selected_curves=selected_curves,
@@ -157,7 +266,7 @@ def predict_wells(
             
             well_engineered = engineered_features[well_name]
             
-            # 2. Filter to required columns
+            # Substep 2.2 – Filter to required columns ______________________
             available_columns = [col for col in feature_columns if col in well_engineered.columns]
             missing_columns = [col for col in feature_columns if col not in well_engineered.columns]
             
@@ -166,7 +275,7 @@ def predict_wells(
             
             well_engineered_filtered = well_engineered[available_columns].copy()
             
-            # 3. Normalization
+            # Substep 2.3 – Normalization ______________________
             X_scaled_new, nearest_well = transform_new_well(
                 new_df=well_engineered_filtered,
                 per_well_strategies=per_well_strategies,
@@ -180,57 +289,33 @@ def predict_wells(
             
             logger.info(f"🎯 Nearest reference well: {nearest_well}")
             
-            # 4. Prediction
+            # Substep 2.4 – Model prediction ______________________
             with tf.device('/GPU:0'):
-                predictions_scaled = model.predict(X_scaled_new, verbose=0)
+                model_output = model.predict(X_scaled_new, verbose=0)
             
-            # Handle different output types based on train_task
-            if train_task == 'regression':
-                cnls_predictions_scaled = predictions_scaled
-            elif train_task == 'classification':
-                # For classification, we don't predict CNLS
-                logger.warning(f"Classification task - no CNLS prediction for {well_name}")
-                continue
-            else:  # 'both'
-                if isinstance(predictions_scaled, list):
-                    cnls_predictions_scaled = predictions_scaled[0]  # regression output
-                else:
-                    cnls_predictions_scaled = predictions_scaled
+            # Substep 2.5 – Process predictions based on task ______________________
+            predictions = _process_model_output(
+                model_output=model_output,
+                train_task=train_task,
+                target_scalers=target_scalers,
+                nearest_well=nearest_well,
+                formation_encoder=formation_encoder
+            )
             
-            # 5. Denormalization
-            target_scaler = target_scalers[nearest_well]
-            cnls_predictions = target_scaler.inverse_transform(
-                cnls_predictions_scaled.reshape(-1, 1)
-            ).flatten()
+            # Substep 2.6 – Extract original data ______________________
+            original_data = _extract_original_data(well_data, train_task)
             
-            # 6. Extract original data
-            if not isinstance(well_data, pd.DataFrame):
-                well_data = pd.DataFrame(well_data)
+            # Substep 2.7 – Combine results ______________________
+            well_results = _combine_results(
+                original_data=original_data,
+                predictions=predictions,
+                nearest_well=nearest_well,
+                train_task=train_task
+            )
             
-            # Get DEPT
-            if well_data.index.name and well_data.index.name.strip().upper() == "DEPT":
-                dept_col = well_data.index.values
-            else:
-                dept_col = well_data['DEPT'].values
+            results_dict[well_name] = well_results
             
-            # Get original CNLS if available
-            if 'CNLS' in well_data.columns:
-                cnls_col = well_data['CNLS'].values
-            else:
-                logger.warning(f"⚠️  CNLS not found in {well_name}")
-                cnls_col = np.full(len(dept_col), np.nan)
-            
-            # 7. Store results
-            results_dict[well_name] = {
-                'DEPT': dept_col.tolist() if hasattr(dept_col, 'tolist') else dept_col,
-                'CNLS': cnls_col.tolist() if hasattr(cnls_col, 'tolist') else cnls_col,
-                'CNLS_Predicted': cnls_predictions.tolist(),
-                'nearest_well': nearest_well,
-                'num_points': len(dept_col)
-            }
-            
-            logger.info(f"✅ Prediction completed for {well_name}")
-            logger.info(f"📊 Results: {len(dept_col)} points")
+            logger.info(f"✅ Prediction completed for {well_name} ({len(original_data['DEPT'])} points)")
             
         except Exception as e:
             logger.error(f"❌ Error processing well {well_name}: {str(e)}")
@@ -239,7 +324,168 @@ def predict_wells(
             continue
     
     logger.info(f"📊 Total wells processed: {len(results_dict)}")
+    
+    # ----
+    # Memory Cleanup After Predictions
+    # ----
+    logger.info("    Cleaning memory after predictions...")
+    clean_memory_for_trial()
+    
     return results_dict
+
+
+def _process_model_output(model_output, train_task: str, target_scalers: dict, nearest_well: str, formation_encoder: dict = None) -> dict:
+    """
+    Process model output based on training task.
+    
+    Args:
+        model_output: Raw model predictions
+        train_task: Training task type
+        target_scalers: Target scalers for denormalization
+        nearest_well: Nearest reference well name
+        formation_encoder: Formation encoder for classification
+        
+    Returns:
+        Dictionary with processed predictions
+    """
+    predictions = {}
+    
+    if train_task == 'regression':
+        # ✅ Only CNLS regression
+        cnls_scaled = model_output
+        target_scaler = target_scalers[nearest_well]
+        predictions['CNLS_Predicted'] = target_scaler.inverse_transform(
+            cnls_scaled.reshape(-1, 1)
+        ).flatten()
+        
+    elif train_task == 'classification':
+        # ✅ Only Formation classification
+        formation_probs = model_output
+        formation_indices = np.argmax(formation_probs, axis=1)
+        
+        # Convert indices back to formation names using formation_encoder
+        if formation_encoder is not None:
+            try:
+                # LabelEncoder.inverse_transform expects 1D array
+                formation_names = formation_encoder.inverse_transform(formation_indices)
+                predictions['Formation_Predicted'] = formation_names
+                logger.info(f"✅ Formation predictions converted from indices to names")
+            except Exception as e:
+                logger.warning(f"⚠️  Could not convert formation indices to names: {e}")
+                logger.warning(f"⚠️  Using numeric indices instead")
+                predictions['Formation_Predicted'] = formation_indices
+        else:
+            logger.warning(f"⚠️  No formation_encoder provided - using numeric indices")
+            predictions['Formation_Predicted'] = formation_indices
+        
+    elif train_task == 'both':
+        # ✅ Both CNLS and Formation
+        if isinstance(model_output, list) and len(model_output) == 2:
+            cnls_scaled, formation_probs = model_output
+            
+            # Process CNLS
+            target_scaler = target_scalers[nearest_well]
+            predictions['CNLS_Predicted'] = target_scaler.inverse_transform(
+                cnls_scaled.reshape(-1, 1)
+            ).flatten()
+            
+            # Process Formation
+            formation_indices = np.argmax(formation_probs, axis=1)
+            
+            # Convert indices back to formation names using formation_encoder
+            if formation_encoder is not None:
+                try:
+                    # LabelEncoder.inverse_transform expects 1D array
+                    formation_names = formation_encoder.inverse_transform(formation_indices)
+                    predictions['Formation_Predicted'] = formation_names
+                    logger.info(f"✅ Formation predictions converted from indices to names")
+                except Exception as e:
+                    logger.warning(f"⚠️  Could not convert formation indices to names: {e}")
+                    logger.warning(f"⚠️  Using numeric indices instead")
+                    predictions['Formation_Predicted'] = formation_indices
+            else:
+                logger.warning(f"⚠️  No formation_encoder provided - using numeric indices")
+                predictions['Formation_Predicted'] = formation_indices
+        else:
+            raise ValueError(f"Expected 2 outputs for 'both' task, got {type(model_output)}")
+    
+    else:
+        raise ValueError(f"Unknown train_task: {train_task}")
+    
+    return predictions
+
+
+def _extract_original_data(well_data: pd.DataFrame, train_task: str) -> dict:
+    """
+    Extract original data from well DataFrame based on task.
+    
+    Args:
+        well_data: Original well data
+        train_task: Training task type
+        
+    Returns:
+        Dictionary with original data
+    """
+    if not isinstance(well_data, pd.DataFrame):
+        well_data = pd.DataFrame(well_data)
+    
+    original_data = {}
+    
+    # ✅ Always extract DEPT
+    if well_data.index.name and well_data.index.name.strip().upper() == "DEPT":
+        original_data['DEPT'] = well_data.index.values
+    elif 'DEPT' in well_data.columns:
+        original_data['DEPT'] = well_data['DEPT'].values
+    else:
+        raise ValueError("DEPT column not found in well data")
+    
+    # ✅ Extract task-specific original data
+    if train_task in ['regression', 'both']:
+        if 'CNLS' in well_data.columns:
+            original_data['CNLS'] = well_data['CNLS'].values
+        else:
+            logger.warning("CNLS not found in original data - using NaN")
+            original_data['CNLS'] = np.full(len(original_data['DEPT']), np.nan)
+    
+    if train_task in ['classification', 'both']:
+        if 'Formation' in well_data.columns:
+            original_data['Formation'] = well_data['Formation'].values
+        else:
+            logger.warning("Formation not found in original data - using NaN")
+            original_data['Formation'] = np.full(len(original_data['DEPT']), np.nan)
+    
+    return original_data
+
+
+def _combine_results(original_data: dict, predictions: dict, nearest_well: str, train_task: str) -> dict:
+    """
+    Combine original data and predictions into final results.
+    
+    Args:
+        original_data: Original well data
+        predictions: Model predictions
+        nearest_well: Nearest reference well
+        train_task: Training task type
+        
+    Returns:
+        Combined results dictionary
+    """
+    results = {
+        'DEPT': original_data['DEPT'].tolist(),
+        'nearest_well': nearest_well,
+        'num_points': len(original_data['DEPT'])
+    }
+    
+    # ✅ Add task-specific data
+    if train_task in ['regression', 'both']:
+        results['CNLS'] = original_data['CNLS'].tolist()
+        results['CNLS_Predicted'] = predictions['CNLS_Predicted'].tolist()
+    
+    if train_task in ['classification', 'both']:
+        results['Formation'] = original_data['Formation'].tolist()
+        results['Formation_Predicted'] = predictions['Formation_Predicted'].tolist()
+    
+    return results
 
 
 def predict_external_wells(

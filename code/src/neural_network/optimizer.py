@@ -1,4 +1,16 @@
-"""Implements Optuna-based hyperparameter optimization for neural network models. Performs automated search across architecture configurations, regularization parameters, and training settings while saving best models and providing comprehensive trial management."""
+"""
+Implements Optuna-based hyperparameter optimization for neural network models.
+
+Performs automated search across architecture configurations, regularization parameters, 
+and training settings while saving best models and providing comprehensive trial management.
+
+• optimize_hyperparameters() - Main optimization function
+• objective() - Optuna objective function with cross-validation
+• Automated hyperparameter search across model architectures
+• Trial management with checkpointing and recovery
+• Best model saving and performance tracking
+• Integration with custom callbacks and quality validation
+"""
 
 import optuna
 import gc
@@ -14,7 +26,14 @@ from src.neural_network.hyperparameters import (
     OPTIM_TOP_TRIALS,
     N_JOBS_GPU,
 )
-from src.utils.optimizer_nan_stopping_callback import NaNStoppingCallback
+import sys
+import os
+# Add utils directory to path
+utils_path = os.path.join(os.path.dirname(__file__), '..', '..', 'utils')
+sys.path.insert(0, utils_path)
+
+from utils.neural_network.optimization.optimizer_nan_stopping_callback import NaNStoppingCallback
+from utils.neural_network.memory_management.memory_manager import clean_memory_for_trial
 
 def objective(trial, X, y, unknown_index, classification_output_shape, train_task, best_metric, best_model_base_path, task_base_dir):
     """Función objetivo para optimización de hiperparámetros."""
@@ -22,7 +41,9 @@ def objective(trial, X, y, unknown_index, classification_output_shape, train_tas
         hyperparams = get_hyperparams_from_trial(trial)
 
         with tf.device('/GPU:0'):
-            model = build_model(hyperparams, X.shape[1:], 1, classification_output_shape, unknown_index, train_task)
+            # Pasar y_train para cálculo de class weights en clasificación
+            y_train_for_weights = y['Formation'] if train_task == 'classification' else None
+            model = build_model(hyperparams, X.shape[1:], 1, classification_output_shape, unknown_index, train_task, y_train_for_weights)
             
             # Determinar métrica según tarea
             monitor_metric = {
@@ -55,7 +76,7 @@ def objective(trial, X, y, unknown_index, classification_output_shape, train_tas
         # Validar métrica
         if np.isnan(metric_value) or np.isinf(metric_value):
             del model
-            gc.collect()
+            clean_memory_for_trial()
             return float('inf')
         
         # Guardar si es mejor
@@ -79,12 +100,12 @@ def objective(trial, X, y, unknown_index, classification_output_shape, train_tas
             print(f"💾 Guardado en: {train_task}/model/optuna_trials/{model_folder_name}")
 
         del model
-        gc.collect()
+        clean_memory_for_trial()
         return metric_value
         
     except Exception as e:
         print(f"❌ Error en trial {trial.number}: {e}")
-        gc.collect()
+        clean_memory_for_trial()
         return float('inf')
 
 def optimize_hyperparameters(X, y, unknown_index, classification_output_shape, train_task, n_trials=OPTIM_N_TRIALS, top_n=OPTIM_TOP_TRIALS, task_base_dir=None):

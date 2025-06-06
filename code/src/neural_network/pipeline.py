@@ -1,4 +1,16 @@
-"""Orchestrates complete neural network training pipeline from data preprocessing to model evaluation. Integrates feature engineering, normalization, hyperparameter optimization, cross-validation, and final training for well log analysis tasks."""
+"""
+Orchestrates complete neural network training pipeline.
+
+Integrates data preprocessing, feature engineering, normalization, hyperparameter 
+optimization, cross-validation, and final training for well log analysis tasks.
+
+• pipeline() - Main orchestration function with configurable training tasks
+• Data preprocessing and consistency correction
+• Feature engineering and normalization
+• Hyperparameter optimization with Optuna
+• Cross-validation and model selection
+• Final training and evaluation
+"""
 
 # Standard library imports
 import os
@@ -14,22 +26,31 @@ import psutil
 import optuna
 
 # IMPORTANT: Initialize GPU environment BEFORE importing TensorFlow
-import src.utils.initialize_gpu
+import sys
+import os
+# Add utils directory to path
+utils_path = os.path.join(os.path.dirname(__file__), '..', '..', 'utils')
+sys.path.insert(0, utils_path)
+
+from utils.neural_network.memory_management.initialize_gpu import *
 
 # TensorFlow imports (grouped together) - now safe to import after GPU initialization
 import tensorflow as tf
 from tensorflow.keras import mixed_precision
 
 # Local imports - utilities
-from src.utils.utils import configure_logging, set_random_seed
-from src.utils.memory_manager import configure_memory, optimize_for_optuna_trials, clean_memory_for_trial
-from src.utils.optimizer_export_journal_to_sqlite import export_journal_to_sqlite
+from utils.core.utils import configure_logging, set_random_seed
+from utils.neural_network.memory_management.memory_manager import configure_memory, optimize_for_optuna_trials, clean_memory_for_trial
+from utils.neural_network.optimization.optimizer_export_journal_to_sqlite import export_journal_to_sqlite
 
 # Local imports - preprocessing
 from src.data_preprocessing.split_data import split_wells_by_prediction, plot_classification_matrix
 from src.data_preprocessing.feature_engineering import generate_features
 from src.data_preprocessing.normalization import prepare_and_normalize_data
 from src.data_preprocessing.consistency_corrector import correct_data_consistency
+
+# Local imports - formation mapping
+from utils.geology.formation_mapper import standardize_formation_name, get_formation_statistics
 
 # Local imports - neural network
 from src.neural_network.optimizer import optimize_hyperparameters
@@ -48,7 +69,7 @@ from src.neural_network.hyperparameters import (
 )
 
 # Local imports - utilities for printing
-from src.utils.print_config_metrics import print_config_metrics
+from utils.neural_network.visualization.print_config_metrics import print_config_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -140,11 +161,58 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
         if line.strip():
             logger.info(f"    {line}")
 
+    ################################## Step 0.6: Formation Standardization ##################################
+
+    logger.info("Step 0.6: Standardizing formation names...")
+    
+    # Apply formation mapping to standardize formation names across all wells
+    data_with_standardized_formations = {}
+    total_formations_before = 0
+    total_formations_after = 0
+    
+    for well_name, well_data in data_corrected.items():
+        if 'Formation' in well_data.columns:
+            # Create a copy to avoid modifying original data
+            well_data_copy = well_data.copy()
+            
+            # Count formations before mapping
+            formations_before = well_data_copy['Formation'].nunique()
+            total_formations_before += formations_before
+            
+            # Apply formation mapping using the standardize function
+            well_data_copy['Formation'] = well_data_copy['Formation'].apply(standardize_formation_name)
+            
+            # Count formations after mapping
+            formations_after = well_data_copy['Formation'].nunique()
+            total_formations_after += formations_after
+            
+            data_with_standardized_formations[well_name] = well_data_copy
+            
+            logger.info(f"    {well_name}: {formations_before} → {formations_after} unique formations")
+        else:
+            # Well doesn't have Formation column, keep as is
+            data_with_standardized_formations[well_name] = well_data
+            logger.info(f"    {well_name}: No Formation column found")
+    
+    # Log overall mapping results
+    logger.info("Formation standardization completed:")
+    logger.info(f"    Total unique formations before mapping: {total_formations_before}")
+    logger.info(f"    Total unique formations after mapping: {total_formations_after}")
+    logger.info(f"    Reduction: {total_formations_before - total_formations_after} formations consolidated")
+    
+    # Log the mapping applied
+    logger.info("    Applied mappings:")
+    logger.info("        • LKC variants (LKC B, C, D, E, F, H) → Lansing-Kansas City")
+    logger.info("        • Stark variants (Stark, Stark Shale) → Stark Shale")
+    logger.info("        • Deer Creek variants → Deer Creek")
+    logger.info("        • Heebner variants → Heebner Shale")
+    logger.info("        • Other formations remain unchanged")
+
     ################################## Step 1: Data Loading and Preprocessing ##################################
 
     logger.info("Step 1: Splitting data into train/validation and external test sets...")
     train_validation_data, external_test_data, discarded_wells, _ = split_wells_by_prediction(
-        data_corrected, curves_to_predict, min_curves=MIN_CURVES, random_seed=RANDOM_SEED
+        data_with_standardized_formations, curves_to_predict, min_curves=MIN_CURVES, random_seed=RANDOM_SEED
     )
 
     # Detailed split information
@@ -165,6 +233,12 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
         error_msg = "No wells available for training after splitting. Check if curves_to_predict exist in the data."
         logger.error(error_msg)
         raise ValueError(error_msg)
+    
+    # ----
+    # Step 1 Memory Cleanup
+    # ----
+    logger.info("    Cleaning memory after data splitting...")
+    clean_memory_for_trial()
 
     ################################## Step 2: Feature Engineering ##################################
 
@@ -188,6 +262,12 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
             logger.info(f"        [Coordinate] {feature_name}")
         else:
             logger.info(f"        [Numerical] {feature_name}")
+    
+    # ----
+    # Step 2 Memory Cleanup
+    # ----
+    logger.info("    Cleaning memory after feature engineering...")
+    clean_memory_for_trial()
 
     ################################## Step 3: Data Normalization ##################################
 
@@ -213,6 +293,12 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
         logger.warning(f"    Fit errors encountered: {len(fit_errors)}")
         for error_type, col, well in fit_errors[:5]:  # Show first 5 errors
             logger.warning(f"        {error_type}: {col} (well: {well})")
+    
+    # ----
+    # Step 3 Memory Cleanup
+    # ----
+    logger.info("    Cleaning memory after data normalization...")
+    clean_memory_for_trial()
 
     ################################## Step 4: Hyperparameter Optimization ##################################
 
@@ -254,6 +340,12 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
 
     # logger.info(f"Successfully exported Optuna journal to SQLite database at {sqlite_path}")
     logger.info(f"    Optuna studies saved in separate journal files for each phase")
+    
+    # ----
+    # Step 4 Memory Cleanup
+    # ----
+    logger.info("    Cleaning memory after hyperparameter optimization...")
+    clean_memory_for_trial()
 
     ################################## Step 5: Cross-Validation of Top Configs ##################################
     logger.info("Step 5: Validating top configurations with K-Fold cross-validation...")
@@ -270,6 +362,12 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
     )
 
     print_config_metrics(best_config)
+    
+    # ----
+    # Step 5 Memory Cleanup
+    # ----
+    logger.info("    Cleaning memory after cross-validation...")
+    clean_memory_for_trial()
     
     ################################## Step 6: Final Training ##################################
     logger.info("Step 6: Final Training with best hyperparams")
@@ -290,6 +388,12 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
     )
     
     logger.info("Final training completed. Model and normalizer have been saved.")
+    
+    # ----
+    # Step 6 Memory Cleanup
+    # ----
+    logger.info("    Cleaning memory after final training...")
+    clean_memory_for_trial()
 
     ################################## Step 7: Evaluate ##################################
     logger.info("Step 7: Evaluating external test set")
@@ -308,7 +412,9 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
         global_columns=global_columns,
         well_descriptors=well_descriptors,
         target_scalers=target_scalers,
-        train_task=train_task
+        train_task=train_task,
+        unknown_index=unknown_index,
+        formation_encoder=formation_encoder
     )
 
     logger.info("Predictions on external wells completed.")
@@ -320,6 +426,12 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
         logger.info(f"✅ Prediction CSVs saved to: {results_dir}")
     else:
         logger.warning("⚠️  No predictions to save - external test set may be empty")
+    
+    # ----
+    # Step 7 Final Memory Cleanup
+    # ----
+    logger.info("    Final memory cleanup...")
+    clean_memory_for_trial()
 
     # Return all the important data structures needed for the next steps
     return (

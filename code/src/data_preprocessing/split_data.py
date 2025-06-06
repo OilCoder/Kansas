@@ -1,5 +1,13 @@
 """
-Splits well datasets into training/validation and external test sets. Filters wells by curve availability, creates binary matrices showing curve presence, and provides visualization tools for data distribution analysis.
+Splits well datasets into training/validation and external test sets.
+
+Filters wells by curve availability and creates binary matrices showing curve presence 
+across wells. Provides visualization tools for data distribution analysis.
+
+• filter_wells_by_curves() - Filters wells by minimum curve requirements
+• split_wells_by_prediction() - Random split with K-Fold approach
+• plot_classification_matrix() - Visualizes well categorization
+• plot_discrepancies() - Shows curve presence heatmaps
 """
 import pandas as pd
 import matplotlib.pyplot as plt
