@@ -490,3 +490,145 @@ def prepare_and_normalize_data(
         normalizers,
         fit_errors
     )
+
+
+# ============================================================================
+# SCALER SAVING AND LOADING FUNCTIONS
+# ============================================================================
+
+def save_scalers(
+    per_well_strategies: dict,
+    global_feature_scalers: dict,
+    categorical_encoders: dict,
+    feature_columns: list,
+    global_columns: list,
+    well_descriptors: dict,
+    target_scalers: dict,
+    formation_encoder,
+    unknown_index: int,
+    save_dir: str,
+    selected_curves: list = None,
+    curves_to_predict: list = None
+):
+    """
+    Save all scalers and normalization parameters to a directory.
+    
+    Args:
+        per_well_strategies: Per-well transformation strategies
+        global_feature_scalers: Global feature scalers
+        categorical_encoders: Categorical encoders
+        feature_columns: List of feature columns
+        global_columns: List of global columns
+        well_descriptors: Well descriptors for similarity matching
+        target_scalers: Target scalers
+        formation_encoder: Formation encoder
+        unknown_index: Unknown index for classification
+        save_dir: Directory to save scalers
+        selected_curves: Input curves used in training
+        curves_to_predict: Target curves to predict
+    """
+    import os
+    import pickle
+    import json
+    
+    # Create scalers directory
+    os.makedirs(save_dir, exist_ok=True)
+    
+    logger.info(f"💾 Saving scalers to: {save_dir}")
+    
+    # Save simple objects as JSON
+    metadata = {
+        'feature_columns': feature_columns,
+        'global_columns': global_columns,
+        'unknown_index': unknown_index,
+        'selected_curves': selected_curves or [],
+        'curves_to_predict': curves_to_predict or [],
+        'per_well_strategies': per_well_strategies
+    }
+    
+    with open(os.path.join(save_dir, 'metadata.json'), 'w') as f:
+        json.dump(metadata, f, indent=2)
+    
+    # Save complex objects as pickle
+    with open(os.path.join(save_dir, 'global_feature_scalers.pkl'), 'wb') as f:
+        pickle.dump(global_feature_scalers, f)
+    
+    with open(os.path.join(save_dir, 'categorical_encoders.pkl'), 'wb') as f:
+        pickle.dump(categorical_encoders, f)
+    
+    with open(os.path.join(save_dir, 'well_descriptors.pkl'), 'wb') as f:
+        pickle.dump(well_descriptors, f)
+    
+    with open(os.path.join(save_dir, 'target_scalers.pkl'), 'wb') as f:
+        pickle.dump(target_scalers, f)
+    
+    with open(os.path.join(save_dir, 'formation_encoder.pkl'), 'wb') as f:
+        pickle.dump(formation_encoder, f)
+    
+    logger.info(f"✅ Scalers saved successfully:")
+    logger.info(f"   📁 Metadata: metadata.json")
+    logger.info(f"   📁 Global scalers: global_feature_scalers.pkl")
+    logger.info(f"   📁 Categorical encoders: categorical_encoders.pkl")
+    logger.info(f"   📁 Well descriptors: well_descriptors.pkl")
+    logger.info(f"   📁 Target scalers: target_scalers.pkl")
+    logger.info(f"   📁 Formation encoder: formation_encoder.pkl")
+
+
+def load_scalers(load_dir: str) -> dict:
+    """
+    Load all scalers and normalization parameters from a directory.
+    
+    Args:
+        load_dir: Directory containing saved scalers
+        
+    Returns:
+        Dictionary with all loaded scalers and parameters
+    """
+    import os
+    import pickle
+    import json
+    
+    if not os.path.exists(load_dir):
+        raise FileNotFoundError(f"Scalers directory not found: {load_dir}")
+    
+    logger.info(f"📥 Loading scalers from: {load_dir}")
+    
+    # Load metadata
+    metadata_path = os.path.join(load_dir, 'metadata.json')
+    if not os.path.exists(metadata_path):
+        raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
+    
+    with open(metadata_path, 'r') as f:
+        metadata = json.load(f)
+    
+    # Load complex objects
+    scalers = {}
+    
+    files_to_load = [
+        ('global_feature_scalers', 'global_feature_scalers.pkl'),
+        ('categorical_encoders', 'categorical_encoders.pkl'),
+        ('well_descriptors', 'well_descriptors.pkl'),
+        ('target_scalers', 'target_scalers.pkl'),
+        ('formation_encoder', 'formation_encoder.pkl')
+    ]
+    
+    for key, filename in files_to_load:
+        filepath = os.path.join(load_dir, filename)
+        if os.path.exists(filepath):
+            with open(filepath, 'rb') as f:
+                scalers[key] = pickle.load(f)
+            logger.info(f"   ✅ Loaded: {filename}")
+        else:
+            logger.warning(f"   ⚠️  File not found: {filename}")
+            scalers[key] = None
+    
+    # Combine metadata and scalers
+    result = {**metadata, **scalers}
+    
+    logger.info(f"✅ Scalers loaded successfully")
+    logger.info(f"   📊 Feature columns: {len(result['feature_columns'])}")
+    logger.info(f"   📊 Global columns: {len(result['global_columns'])}")
+    logger.info(f"   📊 Per-well strategies: {len(result['per_well_strategies'])}")
+    logger.info(f"   📊 Target scalers: {len(result.get('target_scalers', {}))}")
+    
+    return result

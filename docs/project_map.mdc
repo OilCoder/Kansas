@@ -1,8 +1,3 @@
----
-description: 
-globs: 
-alwaysApply: false
----
 # Project Map
 
 *Auto-generated documentation - Last updated: 1748740542.9606824*
@@ -23,9 +18,12 @@ workspace/
 │   │   └── Well_plots
 │   ├── src   → Core application modules
 │   │   ├── data_preprocessing
-│   │   ├── neural_network
-│   │   └── utils
+│   │   └── neural_network
 │   ├── utils   → Helper utilities and tools
+│   │   ├── core
+│   │   ├── data_acquisition
+│   │   ├── geology
+│   │   └── neural_network
 │   └── ux_ui   → Interactive UI components
 ├── data   → Raw and processed datasets
 │   ├── v1.0_raw_data   → Original KGS data files
@@ -47,14 +45,17 @@ workspace/
 
 ### `code/src/data_preprocessing/consistency_corrector.py`
 
-Corrects porosity scale inconsistencies in well log data.
+Corrects porosity scale inconsistencies and standardizes formation names in well log data.
 
 Automatically detects and converts porosity curves (DPOR, SPOR, CNLS) from percentage 
-scale (0-100) to decimal scale (0-1) when needed, ensuring data consistency across wells.
+scale (0-100) to decimal scale (0-1) when needed, and standardizes formation names 
+across wells for consistency.
 
-• correct_data_consistency() - Main correction function with detailed reporting
+• correct_data_consistency() - Original porosity correction function
+• preprocess_data_comprehensive() - Combined correction and standardization function
 • Handles DPOR, SPOR, and CNLS curves
-• Provides correction statistics and summary reports
+• Standardizes formation names using geological mapping
+• Provides detailed correction statistics and summary reports
 
 ### `code/src/data_preprocessing/feature_engineering.py`
 
@@ -116,9 +117,11 @@ Implements early stopping, learning rate scheduling, and comprehensive evaluatio
 produce production-ready models with detailed logging and robust validation monitoring.
 
 • final_train() - Main training function with validation split
+• final_train_improved_classification() - Enhanced training for classification
 • Early stopping and learning rate reduction callbacks
 • Robust overfitting prevention with validation metrics
 • Model checkpointing and automatic saving
+• Class weight balancing for imbalanced classification
 • Comprehensive training history and performance logging
 • Support for multi-task training (regression/classification)
 
@@ -156,7 +159,10 @@ Supports multi-task learning for regression and classification with custom metri
 regularization, and GPU optimization for well log prediction tasks.
 
 • build_model() - Main model construction function
+• build_improved_classification_model() - Improved classification model
 • get_hyperparams_from_trial() - Extract Optuna trial parameters
+• get_class_weights() - Calculate balanced class weights
+• focal_loss() - Focal loss for imbalanced classification
 • Configurable architecture (layers, units, activations, dropout)
 • Multi-task outputs (regression and classification)
 • Custom metrics for masked classification
@@ -218,35 +224,31 @@ and data preparation for machine learning workflows in oil and gas exploration.
 • Formation data management and unique formation tracking
 • Data preparation and export for neural network training
 
-### `code/src/utils/example_plot_usage.py`
+### `code/utils/core/utils.py`
 
-Demonstrates plotting functionality usage with comprehensive examples.
+Provides core utility functions for logging configuration and reproducible random seed management.
 
-Shows how to visualize neural network predictions, load CSV data, and generate 
-comparative plots for well log analysis workflows.
+Implements custom formatted logging with step highlighting and comprehensive warning 
+suppression for clean neural network pipeline execution.
 
-• example_usage() - Main demonstration function with examples
-• Comprehensive plotting examples and tutorials
-• CSV data loading and visualization workflows
-• Integration with plot_logs module functions
-• Best practices for prediction visualization
-• Interactive demonstration of plotting capabilities
+• configure_logging() - Application-wide logging setup with custom formatters
+• set_random_seed() - Reproducible random seed management
+• PrettyFormatter class for enhanced console output
+• TensorFlow and third-party library warning suppression
+• File and console logging with different formatting
 
-### `code/src/utils/gpu_cheker.py`
+### `code/utils/geology/formation_mapper.py`
 
-Verifies GPU availability and performs basic operation tests without modifying system settings.
+Formation Mapper Module
 
-Provides non-intrusive GPU capability checking, device information reporting, and 
-compatibility validation for neural network operations.
+Provides standardized mapping between specific project formation names 
+and general geological formation names for consistent reporting.
 
-• check_gpu_availability() - Main GPU verification function
-• Non-intrusive GPU testing without system modifications
-• Device information reporting and capability assessment
-• TensorFlow GPU compatibility validation
-• Memory and compute capability checking
-• Safe testing without affecting existing configurations
+• standardize_formation_name() - Maps specific to general formation names
+• apply_formation_mapping() - Applies mapping to prediction DataFrames
+• get_formation_mapping() - Returns the complete mapping dictionary
 
-### `code/src/utils/initialize_gpu.py`
+### `code/utils/neural_network/memory_management/initialize_gpu.py`
 
 Configures GPU environment variables and optimizations for RTX 4080 performance.
 
@@ -260,7 +262,7 @@ to maximize neural network training efficiency and stability.
 • TensorFlow GPU memory growth and allocation settings
 • Automatic execution on module import
 
-### `code/src/utils/memory_manager.py`
+### `code/utils/neural_network/memory_management/memory_manager.py`
 
 Manages GPU and system memory allocation for TensorFlow operations.
 
@@ -274,49 +276,7 @@ and real-time memory monitoring for efficient neural network training.
 • GPU memory growth and allocation management
 • System memory monitoring and cleanup utilities
 
-### `code/src/utils/notebook_plotting.py`
-
-Provides Jupyter notebook-optimized plotting functions for neural network predictions.
-
-Configures matplotlib for inline display, implements convenient plotting interfaces, 
-and offers demo functions for interactive visualization and analysis.
-
-• notebook_demo() - Interactive demonstration of plotting capabilities
-• Matplotlib configuration for Jupyter notebook inline display
-• Convenient plotting interfaces optimized for notebook environments
-• Integration with plot_logs module for prediction visualization
-• Interactive demonstration and tutorial functions
-• Notebook-specific formatting and display optimization
-
-### `code/src/utils/optimizer_checkpoint_manager.py`
-
-Manages optimization checkpoints with automatic saving and recovery capabilities.
-
-Provides organized checkpoint storage, metadata tracking, batch cleanup, and system 
-recovery for robust hyperparameter optimization workflows.
-
-• OptimizerCheckpointManager - Main checkpoint management class
-• Automatic checkpoint creation and metadata tracking
-• Organized storage with timestamped directories
-• Batch cleanup and storage optimization
-• System recovery from checkpoint data
-• Progress tracking and resumption capabilities
-
-### `code/src/utils/optimizer_error_handler.py`
-
-Handles optimization errors with automatic recovery and emergency shutdown capabilities.
-
-Manages failed workers, validates results, implements retry mechanisms, and provides 
-graceful degradation during hyperparameter search failures.
-
-• OptimizerErrorHandler - Main error handling and recovery class
-• Automatic error detection and classification
-• Failed worker management and recovery strategies
-• Result validation and quality assessment
-• Emergency shutdown procedures for critical failures
-• Graceful degradation and retry mechanisms
-
-### `code/src/utils/optimizer_export_journal_to_sqlite.py`
+### `code/utils/neural_network/optimization/optimizer_export_journal_to_sqlite.py`
 
 Exports Optuna optimization results from journal files to SQLite databases.
 
@@ -330,35 +290,7 @@ generates summary reports, and enables efficient querying of hyperparameter sear
 • Automatic indexing and views for efficient querying
 • JSON export reports with detailed statistics
 
-### `code/src/utils/optimizer_file_organizer.py`
-
-Organizes optimization files and directories with hierarchical structure.
-
-Creates timestamped run directories, manages model metadata, implements cleanup policies, 
-and maintains organized storage for hyperparameter optimization experiments and results.
-
-• setup_optimizer_directories() - Creates hierarchical directory structure
-• save_optimizer_model_metadata() - Manages model storage with metadata
-• cleanup_optimizer_runs() - Implements cleanup policies for old runs
-• Timestamped run directories and experiment organization
-• Model metadata tracking and storage management
-• Automatic cleanup based on age and count limits
-
-### `code/src/utils/optimizer_health_monitor.py`
-
-Monitors system health during hyperparameter optimization with real-time resource tracking.
-
-Provides intelligent worker management, memory monitoring, temperature checking, and 
-automatic scaling based on system performance for stable optimization runs.
-
-• OptimizerHealthMonitor - Real-time system health monitoring class
-• OptimizerWorkerManager - Intelligent worker scaling and management
-• Real-time RAM, GPU memory, and temperature monitoring
-• Automatic worker scaling based on system health status
-• Failed worker recovery and restart mechanisms
-• Performance-based optimization resource allocation
-
-### `code/src/utils/optimizer_nan_stopping_callback.py`
+### `code/utils/neural_network/optimization/optimizer_nan_stopping_callback.py`
 
 Implements TensorFlow callback for early detection and stopping of training when NaN or infinite values appear.
 
@@ -372,49 +304,28 @@ hyperparameter optimization.
 • Prevents wasted computational resources in optimization
 • Automatic training termination on numerical instability
 
-### `code/src/utils/optimizer_quality_validator.py`
+### `code/utils/neural_network/optimization/rtx4080_optimizer.py`
 
-Validates optimization quality through variance and entropy analysis.
+RTX 4080 Specific Performance Optimizer
 
-Assesses model promise, checks prediction diversity, evaluates trial value, and ensures 
-hyperparameter configurations produce meaningful and non-degenerate neural network models.
+Advanced optimization utilities specifically designed for NVIDIA RTX 4080 GPU.
+Provides maximum performance configurations, crash prevention, and intelligent
+batch size optimization for neural network training.
 
-• OptimizerQualityValidator - Main quality assessment class
-• Prediction variance and entropy analysis
-• Model promise evaluation and scoring
-• Trial value assessment and validation
-• Detection of degenerate model configurations
-• Quality metrics for hyperparameter optimization
+• optimize_rtx4080_performance() - Main RTX 4080 optimization function
+• get_optimal_batch_size() - Dynamic batch size calculation
+• monitor_gpu_health() - Real-time GPU health monitoring
+• prevent_oom_crashes() - Out-of-memory crash prevention
+• RTX 4080 Ada Lovelace architecture specific optimizations
 
-### `code/src/utils/plot_logs.py`
+### `code/utils/neural_network/visualization/plot_from_csv.py`
 
-Visualizes neural network prediction results from CSV files.
+Generate prediction plots directly from existing CSV files.
 
-Supports task-specific directory detection, comparative plotting across wells, individual 
-well analysis, and automatic data loading for comprehensive prediction evaluation.
+This utility allows you to create professional well logging plots
+from previously saved prediction CSV files without re-running the pipeline.
 
-• plot_predicted_curves() - Comparative plotting across multiple wells
-• plot_individual_well() - Detailed single well visualization
-• load_prediction_data() - Automatic CSV data loading with task detection
-• quick_plot() - Convenient wrapper for rapid visualization
-• Support for regression, classification, and multi-task results
-• Automatic results directory detection and file management
-
-### `code/src/utils/plot_predictions.py`
-
-Command-line script for plotting neural network predictions from CSV files.
-
-Provides automated visualization of well log predictions with comparative and individual 
-well plots for quick analysis.
-
-• main() - Command-line interface for prediction plotting
-• Automated CSV file detection and loading
-• Comparative plotting across multiple wells
-• Individual well visualization options
-• Command-line argument parsing and execution
-• Integration with plot_logs module for visualization
-
-### `code/src/utils/print_config_metrics.py`
+### `code/utils/neural_network/visualization/print_config_metrics.py`
 
 Formats and displays hyperparameter configuration results with cross-validation metrics.
 
@@ -427,18 +338,25 @@ of model performance across folds.
 • Support for both scaled and real-scale metric reporting
 • Clean tabular output using tabulate library
 
-### `code/src/utils/utils.py`
+### `code/utils/neural_network/visualization/quick_plot.py`
 
-Provides core utility functions for logging configuration and reproducible random seed management.
+Quick plotting utility for Jupyter notebooks.
 
-Implements custom formatted logging with step highlighting and comprehensive warning 
-suppression for clean neural network pipeline execution.
+Simple functions to generate plots from existing CSV files
+without command-line complexity.
 
-• configure_logging() - Application-wide logging setup with custom formatters
-• set_random_seed() - Reproducible random seed management
-• PrettyFormatter class for enhanced console output
-• TensorFlow and third-party library warning suppression
-• File and console logging with different formatting
+### `code/utils/neural_network/visualization/well_prediction_plotter.py`
+
+Well prediction visualization for neural network results.
+
+Creates track-style plots showing real vs predicted CNLS values for each well,
+similar to traditional well log displays. Generates publication-ready figures
+for model evaluation and geological interpretation.
+
+• plot_well_predictions() - Main plotting function for individual wells
+• plot_all_predictions() - Batch plotting for all predicted wells
+• create_track_plot() - Core track plotting functionality
+• save_prediction_plots() - Save plots to organized directory structure
 
 ### `tests/test_01_normalization_new_strategy.py`
 

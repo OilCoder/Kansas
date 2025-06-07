@@ -19,11 +19,10 @@ import pandas as pd
 from welly import Project
 import glob, sys, io
 import ipywidgets as widgets
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import os
 import glob
 from welly import Project
-from tqdm import tqdm
 #from contextlib import redirect_stdout, redirect_stderr
 import io
 import lasio

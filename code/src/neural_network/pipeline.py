@@ -46,7 +46,7 @@ from utils.neural_network.optimization.optimizer_export_journal_to_sqlite import
 # Local imports - preprocessing
 from src.data_preprocessing.split_data import split_wells_by_prediction, plot_classification_matrix
 from src.data_preprocessing.feature_engineering import generate_features
-from src.data_preprocessing.normalization import prepare_and_normalize_data
+from src.data_preprocessing.normalization import prepare_and_normalize_data, save_scalers
 from src.data_preprocessing.consistency_corrector import preprocess_data_comprehensive
 
 # Local imports - formation mapping
@@ -246,6 +246,29 @@ def pipeline(data, selected_curves, curves_to_predict, train_task=None):
         logger.warning(f"    Fit errors encountered: {len(fit_errors)}")
         for error_type, col, well in fit_errors[:5]:  # Show first 5 errors
             logger.warning(f"        {error_type}: {col} (well: {well})")
+    
+    # ----
+    # Step 3.1 – Save Scalers ______________________
+    # ----
+    logger.info("    Step 3.1: Saving scalers for future use...")
+    
+    scalers_dir = os.path.join(task_base_dir, 'scalers')
+    save_scalers(
+        per_well_strategies=per_well_strategies,
+        global_feature_scalers=global_feature_scalers,
+        categorical_encoders=categorical_encoders,
+        feature_columns=feature_columns,
+        global_columns=global_columns,
+        well_descriptors=well_descriptors,
+        target_scalers=target_scalers,
+        formation_encoder=formation_encoder,
+        unknown_index=unknown_index,
+        save_dir=scalers_dir,
+        selected_curves=selected_curves,
+        curves_to_predict=curves_to_predict
+    )
+    
+    logger.info(f"✅ Scalers saved to: {scalers_dir}")
     
     # ----
     # Step 3 Memory Cleanup

@@ -12,6 +12,7 @@ for model evaluation and geological interpretation.
 """
 
 import os
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import pandas as pd
@@ -19,13 +20,21 @@ import numpy as np
 from typing import Dict, List, Optional, Tuple
 import logging
 
+# Configure matplotlib for better axis visibility
+matplotlib.rcParams['axes.edgecolor'] = 'black'
+matplotlib.rcParams['axes.linewidth'] = 1.0
+matplotlib.rcParams['xtick.color'] = 'black'
+matplotlib.rcParams['ytick.color'] = 'black'
+matplotlib.rcParams['axes.labelcolor'] = 'black'
+matplotlib.rcParams['text.color'] = 'black'
+
 logger = logging.getLogger(__name__)
 
 def create_track_plot(well_name: str, well_data: pd.DataFrame, depth_col: str = 'DEPT', 
                      real_col: str = 'CNLS_Real', pred_col: str = 'CNLS_Predicho',
-                     figsize: Tuple[int, int] = (8, 12)) -> plt.Figure:
+                     figsize: Tuple[int, int] = (6, 15)) -> plt.Figure:
     """
-    Create a track-style plot for a single well showing real vs predicted CNLS.
+    Create a professional well logging style track plot for a single well.
     
     Args:
         well_name: Name of the well
@@ -38,41 +47,55 @@ def create_track_plot(well_name: str, well_data: pd.DataFrame, depth_col: str = 
     Returns:
         matplotlib Figure object
     """
-    # Create figure and axis
-    fig, ax = plt.subplots(1, 1, figsize=figsize)
+    # Create figure with white background
+    fig, ax = plt.subplots(1, 1, figsize=figsize, facecolor='white')
     
     # Get data
     depth = well_data[depth_col].values
     real_values = well_data[real_col].values
     pred_values = well_data[pred_col].values
     
-    # Plot real values (blue line)
-    ax.plot(real_values, depth, 'b-', linewidth=2, label='CNLS Real', alpha=0.8)
+    # Professional well logging style plot
+    ax.plot(real_values, depth, 'b-', linewidth=2, label='Actual CNLS', alpha=0.8)
+    ax.plot(pred_values, depth, 'r--', linewidth=2, label='Predicted CNLS', alpha=0.8)
     
-    # Plot predicted values (red dashed line)
-    ax.plot(pred_values, depth, 'r--', linewidth=2, label='CNLS Predicho', alpha=0.8)
+    # Well logging style formatting
+    ax.invert_yaxis()  # Depth increases downward
+    ax.set_facecolor('white')
     
-    # Invert y-axis (depth increases downward)
-    ax.invert_yaxis()
+    # Professional styling
+    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5, color='gray')
     
-    # Set labels and title
-    ax.set_xlabel('CNLS', fontsize=12, fontweight='bold')
-    ax.set_ylabel('DEPT', fontsize=12, fontweight='bold')
-    ax.set_title(f'Pozo: {well_name}', fontsize=14, fontweight='bold', pad=20)
+    # Ensure axes are visible
+    ax.spines['bottom'].set_visible(True)
+    ax.spines['left'].set_visible(True)
+    ax.spines['top'].set_visible(True)
+    ax.spines['right'].set_visible(True)
+    ax.spines['bottom'].set_color('black')
+    ax.spines['left'].set_color('black')
+    ax.spines['top'].set_color('black')
+    ax.spines['right'].set_color('black')
     
-    # Add legend
-    ax.legend(loc='upper right', fontsize=10, framealpha=0.9)
+    # Labels and title in English
+    ax.set_xlabel('CNLS (v/v)', fontsize=12, fontweight='bold', color='black')
+    ax.set_ylabel('Depth (ft)', fontsize=12, fontweight='bold', color='black')
+    ax.set_title(f'Well: {well_name}', fontsize=14, fontweight='bold', pad=20, color='black')
     
-    # Set grid
-    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+    # Professional legend
+    ax.legend(loc='upper right', fontsize=11, framealpha=0.9, 
+             fancybox=True, shadow=True)
     
-    # Set x-axis limits with some padding
+    # Professional tick formatting with visible ticks
+    ax.tick_params(axis='both', which='major', labelsize=10, colors='black')
+    ax.tick_params(axis='both', which='minor', colors='black')
+    
+    # Set x-axis limits with padding
     x_min = min(np.min(real_values), np.min(pred_values))
     x_max = max(np.max(real_values), np.max(pred_values))
     x_range = x_max - x_min
     ax.set_xlim(x_min - 0.05 * x_range, x_max + 0.05 * x_range)
     
-    # Improve layout
+    # Professional layout
     plt.tight_layout()
     
     return fig
@@ -179,9 +202,9 @@ def plot_all_predictions(predictions_data: Dict, save_dir: str,
     return saved_plots
 
 def create_summary_plot(predictions_data: Dict, save_dir: str, 
-                       wells_per_row: int = 2, max_wells: int = 8) -> Optional[str]:
+                       wells_per_row: int = 4, max_wells: int = 8) -> Optional[str]:
     """
-    Create a summary plot showing multiple wells in a grid layout.
+    Create a professional well logging style summary plot showing multiple wells in horizontal tracks.
     
     Args:
         predictions_data: Dictionary with prediction results
@@ -202,8 +225,10 @@ def create_summary_plot(predictions_data: Dict, save_dir: str,
     # Calculate grid dimensions
     n_rows = (n_wells + wells_per_row - 1) // wells_per_row
     
-    # Create figure with subplots
-    fig, axes = plt.subplots(n_rows, wells_per_row, figsize=(6 * wells_per_row, 8 * n_rows))
+    # Create figure with white background and professional styling
+    fig, axes = plt.subplots(n_rows, wells_per_row, 
+                            figsize=(4 * wells_per_row, 10 * n_rows),
+                            facecolor='white')
     
     # Handle single subplot case
     if n_wells == 1:
@@ -213,6 +238,23 @@ def create_summary_plot(predictions_data: Dict, save_dir: str,
     else:
         axes = axes.flatten()
     
+    # Find global depth range for shared y-axis
+    all_depths = []
+    for well_name in well_names:
+        well_data_dict = predictions_data[well_name]
+        try:
+            depth = well_data_dict['DEPT']
+            all_depths.extend(depth)
+        except Exception:
+            continue
+    
+    if all_depths:
+        global_depth_min = min(all_depths)
+        global_depth_max = max(all_depths)
+    else:
+        global_depth_min, global_depth_max = 0, 1000
+    
+    # Plot each well
     for i, well_name in enumerate(well_names):
         ax = axes[i]
         well_data_dict = predictions_data[well_name]
@@ -226,26 +268,64 @@ def create_summary_plot(predictions_data: Dict, save_dir: str,
             logger.warning(f"Error getting data for {well_name} in summary plot: {e}")
             continue
         
-        # Plot
-        ax.plot(real_values, depth, 'b-', linewidth=1.5, label='Real', alpha=0.8)
-        ax.plot(pred_values, depth, 'r--', linewidth=1.5, label='Predicho', alpha=0.8)
+        # Professional well logging style plot
+        ax.plot(real_values, depth, 'b-', linewidth=1.5, label='Actual CNLS', alpha=0.8)
+        ax.plot(pred_values, depth, 'r--', linewidth=1.5, label='Predicted CNLS', alpha=0.8)
         
-        # Format
-        ax.invert_yaxis()
-        ax.set_title(f'{well_name}', fontsize=10, fontweight='bold')
-        ax.set_xlabel('CNLS', fontsize=9)
-        ax.set_ylabel('DEPT', fontsize=9)
-        ax.grid(True, alpha=0.3)
-        ax.legend(fontsize=8)
+        # Well logging style formatting
+        ax.invert_yaxis()  # Depth increases downward
+        ax.set_ylim(global_depth_max, global_depth_min)  # Shared depth range
+        
+        # Professional styling
+        ax.set_facecolor('white')
+        ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5, color='gray')
+        
+        # Ensure axes are visible
+        ax.spines['bottom'].set_visible(True)
+        ax.spines['left'].set_visible(True)
+        ax.spines['top'].set_visible(True)
+        ax.spines['right'].set_visible(True)
+        ax.spines['bottom'].set_color('black')
+        ax.spines['left'].set_color('black')
+        ax.spines['top'].set_color('black')
+        ax.spines['right'].set_color('black')
+        
+        # Labels and title
+        ax.set_title(f'{well_name}', fontsize=10, fontweight='bold', pad=10, color='black')
+        ax.set_xlabel('CNLS (v/v)', fontsize=9, color='black')
+        
+        # Only show y-label on leftmost plots
+        if i % wells_per_row == 0:
+            ax.set_ylabel('Depth (ft)', fontsize=9, color='black')
+        else:
+            ax.set_ylabel('')
+        
+        # Legend only on first plot
+        if i == 0:
+            ax.legend(fontsize=8, loc='upper right', framealpha=0.9)
+        
+        # Professional tick formatting with visible ticks
+        ax.tick_params(axis='both', which='major', labelsize=8, colors='black')
+        ax.tick_params(axis='both', which='minor', colors='black')
+        
+        # Set consistent x-axis limits
+        x_min = min(min(real_values), min(pred_values))
+        x_max = max(max(real_values), max(pred_values))
+        x_range = x_max - x_min
+        ax.set_xlim(x_min - 0.05 * x_range, x_max + 0.05 * x_range)
     
     # Hide unused subplots
     for i in range(n_wells, len(axes)):
         axes[i].set_visible(False)
     
-    plt.suptitle('Resumen de Predicciones CNLS', fontsize=16, fontweight='bold', y=0.98)
-    plt.tight_layout()
+    # Professional title
+    plt.suptitle('CNLS Prediction Results - Well Logging Analysis', 
+                fontsize=14, fontweight='bold', y=0.95, color='black')
     
-    # Save summary plot
+    # Tight layout with proper spacing
+    plt.tight_layout(rect=[0, 0, 1, 0.93])
+    
+    # Save summary plot with white background
     os.makedirs(save_dir, exist_ok=True)
     summary_path = os.path.join(save_dir, 'summary_predictions.png')
     fig.savefig(summary_path, dpi=300, bbox_inches='tight', 

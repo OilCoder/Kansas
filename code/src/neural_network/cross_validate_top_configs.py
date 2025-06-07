@@ -24,7 +24,7 @@ import tensorflow as tf
 import gc
 from sklearn.model_selection import KFold
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from scipy.stats import entropy
 
 from src.neural_network.model import build_model
