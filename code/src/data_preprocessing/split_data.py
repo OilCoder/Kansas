@@ -14,16 +14,20 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import random
 
-def filter_wells_by_curves(data, selected_curves):
+def filter_wells_by_curves(data, selected_curves, min_curves=None):
     """
-    Filters out wells that have less than a specified number of available curves and identifies missing curves.
+    Filters out wells that do not contain all required curves or fall below the
+    optional ``min_curves`` threshold. Also reports missing curves for each
+    well.
     
     Parameters:
     - data: Dictionary where each key is a well name and the value is a DataFrame containing the curves for that well.
     - selected_curves: List of curves that should be present for each well.
+    - min_curves: Minimum number of curves a well must have to be kept. If
+      ``None``, only presence of ``selected_curves`` is checked.
     
     Returns:
-    - filtered_data: Dictionary containing only the wells with the minimum number of required curves.
+    - filtered_data: Dictionary containing wells that meet the requirements.
     - missing_curves_report: Dictionary listing missing curves for each well.
     - matrix_df: DataFrame containing a matrix of 1's and 0's indicating presence or absence of curves.
     """
@@ -33,10 +37,20 @@ def filter_wells_by_curves(data, selected_curves):
 
     for well, df in data.items():
         available_curves = df.columns.tolist()
-        
+
         # Identify missing curves
         missing_curves = [curve for curve in selected_curves if curve not in available_curves]
-        
+
+        # Record missing curves if any
+        if missing_curves:
+            missing_curves_report[well] = missing_curves
+
+        # Filter wells by minimum curve count and required curves
+        has_required_curves = len(missing_curves) == 0
+        enough_curves = (min_curves is None) or (len(available_curves) >= min_curves)
+        if has_required_curves and enough_curves:
+            filtered_data[well] = df
+
         # Create binary representation for the well
         binary_representation = [1 if curve in available_curves else 0 for curve in selected_curves]
         matrix_data[well] = binary_representation
